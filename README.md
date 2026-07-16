@@ -1,6 +1,6 @@
 # 魔芋 (MoYu) 🛡️👀
 
-**魔芋**是一款轻量级跨平台（Windows / macOS）的"防偷窥"小工具：通过摄像头实时检测画面中是否出现多张人脸，触发后会自动切换到工作软件，并可抓拍留证。
+**魔芋**是一款面向 Windows 的轻量级"防偷窥"小工具：通过摄像头实时检测画面中是否出现多张人脸，触发后会自动切换到工作软件，并可抓拍留证。
 
 > 🎉 **v1.1.0 更新**: 全新图形化配置界面，让设置更加简单直观！
 
@@ -9,6 +9,7 @@
 - 📸 **MediaPipe 高精度人脸检测**：支持多帧稳定判断，默认"多人同屏"才触发
 - 🪟 **顶层小预览窗**：可移动/缩放，检测到人脸时显示提示文字
 - 💾 **抓拍留存**：触发时保存当前画面到自定义目录
+- 🔒 **Windows 锁屏抓拍**：锁屏期间检测到一张人脸即可按间隔拍照，并保存到独立目录
 - 🔀 **自动切 App**：按配置激活 VSCode / IDEA 等常用软件
 - 🔔 **托盘提醒**：可最小化到系统托盘，报警时弹出气泡提示
 - ⚙️ **图形化设置**：全新的可视化配置界面，无需手动编辑配置文件
@@ -52,6 +53,8 @@
 
 - 启用/禁用人脸检测时自动截图
 - 自定义截图保存目录
+- 启用/禁用 Windows 锁屏人脸抓拍
+- 单独设置锁屏照片目录、触发人脸数和抓拍间隔
 
 #### 🎥 摄像头设置
 调整摄像头和检测参数：
@@ -84,39 +87,29 @@
 ```
 moyu/
 ├── main.py              # 程序入口
-├── config.yml           # 默认配置文件
 ├── main.spec            # PyInstaller 打包配置
 ├── requirements.txt     # Python 依赖
 │
-├── core/                # 核心功能模块
-│   ├── constants.py     # 常量定义
-│   ├── deps.py          # 依赖导入（兼容处理）
-│   ├── paths.py         # 路径工具
-│   ├── config_loader.py # 配置加载与合并
-│   └── detector.py      # MediaPipe 人脸检测线程
+├── assets/              # 图标、图片等静态资源
+├── config/
+│   └── default.yml      # 内置默认配置
 │
-├── services/            # 业务服务模块
-│   ├── snapshot.py      # 抓拍保存服务
-│   └── work_app.py      # 工作应用切换服务
+├── moyu/                # Python 主包
+│   ├── core/            # 配置、路径、依赖与人脸检测
+│   ├── platforms/       # 操作系统能力（Windows 锁屏状态）
+│   ├── runners/         # 无界面运行入口
+│   ├── services/        # 抓拍、锁屏抓拍、应用切换服务
+│   └── ui/              # 预览、设置向导和托盘界面
 │
-├── ui/                  # 界面模块
-│   ├── dpi_utils.py     # DPI 缩放工具
-│   ├── settings_dialog.py # 设置对话框
-│   ├── setup_wizard.py  # 配置向导
-│   ├── splash.py        # 启动画面
-│   ├── tray.py          # 系统托盘管理
-│   ├── ui_app.py        # GUI 预览窗口
-│   └── headless.py      # 无界面模式
-│
-└── docs/                # 文档资源
-    └── screenshots/     # 软件截图
+├── tests/               # 单元测试
+└── docs/screenshots/    # 文档截图
 ```
 
 ## 🛠️ 环境准备
 
 ### 1. 安装 Python 3.9+
-- **Windows**：推荐官方安装包
-- **macOS**：`brew install python`
+
+推荐使用 Python 官方 Windows 安装包。
 
 ### 2. 克隆并安装依赖
 
@@ -125,8 +118,6 @@ git clone https://github.com/x7722/moyu.git
 cd moyu
 python -m pip install -r requirements.txt
 ```
-
-> macOS 用 `python3` 命令
 
 ## 🚀 源码运行
 
@@ -142,16 +133,21 @@ python main.py
 通过托盘图标右键菜单 → **设置** 打开图形化配置界面，所有设置都可以可视化完成。
 
 ### 配置文件覆盖
-程序启动时先加载内置的 `config.yml`，再尝试读取 exe 同目录的外部配置文件进行覆盖。
+程序启动时先加载内置的 `config/default.yml`，再尝试读取 exe 同目录的 `config.yml` 和 `user_config.yml` 进行覆盖。
 
 #### 常用字段
 | 字段 | 说明 | 默认值 |
 |------|------|--------|
 | `min_faces_for_alert` | 触发所需最少人脸数 | 2 |
 | `alert_cooldown_seconds` | 两次触发间的冷却秒数 | 15 |
+| `camera.backend` | Windows 摄像头后端，可选 dshow / msmf / auto | dshow |
 | `snapshot.enabled` | 是否启用抓拍 | true |
-| `snapshot.directory` | 抓拍保存目录 | snapshots |
-| `work_app.active` | 当前生效的目标应用 | vscode |
+| `snapshot.directory` | 抓拍保存目录 | people |
+| `lock_screen.enabled` | Windows 锁屏时是否抓拍 | true |
+| `lock_screen.directory` | 锁屏照片独立保存目录 | lock_screen_people |
+| `lock_screen.min_faces` | 锁屏抓拍所需最少人脸数 | 1 |
+| `lock_screen.cooldown_seconds` | 锁屏连续抓拍间隔（秒） | 10 |
+| `work_app.active` | 当前生效的目标应用 | idea |
 | `ui.enable_system_tray` | 启用系统托盘 | true |
 | `ui.minimize_to_tray` | 关闭时最小化到托盘 | true |
 
@@ -166,23 +162,24 @@ work_app:
 snapshot:
   enabled: true
   directory: snapshots
+lock_screen:
+  enabled: true
+  directory: "D:/MoYu/locked"
+  min_faces: 1
+  cooldown_seconds: 10
 ```
+
+相对目录以源码项目目录或 exe 所在目录为基准。Windows 锁屏抓拍要求程序持续运行，且系统允许桌面应用访问摄像头。锁屏期间若人脸持续存在，会按 `cooldown_seconds` 的间隔重复保存。
+
+> 锁屏状态检测与锁屏抓拍仅支持 Windows。
 
 ## 📦 打包
 
-### Windows
 ```bash
 python -m pip install pyinstaller
 pyinstaller main.spec
 ```
 产物位于 `dist/moyu.exe`
-
-### macOS
-```bash
-python3 -m pip install pyinstaller
-python3 -m PyInstaller --onefile --noconsole --name moyu --add-data "config.yml:." --collect-data mediapipe main.py
-```
-产物为 `dist/moyu`
 
 ## ❓ 常见问题
 

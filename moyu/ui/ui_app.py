@@ -12,13 +12,15 @@ if _sys.platform.startswith('win'):
     except Exception:
         pass
 
-from core.constants import APP_NAME
-from core.deps import sys, tk, Image, ImageTk, cv2
-from core.detector import FaceDetectionWorker
-from core.paths import get_base_dir
-from services.snapshot import save_snapshot
+from moyu.core.constants import APP_NAME
+from moyu.core.config_store import save_user_config
+from moyu.core.deps import sys, tk, Image, ImageTk, cv2
+from moyu.core.detector import FaceDetectionWorker
+from moyu.core.paths import get_asset_path
+from moyu.services.snapshot import save_snapshot
+from moyu.services.lock_screen_capture import LockScreenCaptureService
 from .tray import get_tray_manager
-from services.work_app import switch_to_work_app
+from moyu.services.work_app import switch_to_work_app
 from .settings_dialog import SettingsDialog
 from .dpi_utils import enable_dpi_awareness, enable_dark_title_bar
 
@@ -79,13 +81,12 @@ class CameraPreviewApp:
         self.root = tk.Tk()
         self.root.title(f"{APP_NAME} - 预览")
         self.root.attributes("-topmost", True)
-        self.root.resizable(True, False)  # 只允许水平调整大小，禁用最大化
+        self.root.resizable(True, True)  # 允许水平和垂直调整大小
         self.root.geometry("300x130")  # 加宽预览窗口
         self.root.configure(bg=self.theme_bg)
         
         # 设置窗口图标（修复任务栏显示 Python 图标的问题）
-        import os
-        icon_path = os.path.join(get_base_dir(), "moyu.ico")
+        icon_path = get_asset_path("moyu.ico")
         if os.path.exists(icon_path):
             try:
                 self.root.iconbitmap(icon_path)
@@ -144,6 +145,7 @@ class CameraPreviewApp:
         # 启动人脸检测线程
         self.detector = FaceDetectionWorker(config)
         self.detector.start()
+        self.lock_screen_capture = LockScreenCaptureService(config)
 
         if self.enable_tray:
             self.tray = TrayManager(
@@ -223,28 +225,16 @@ class CameraPreviewApp:
     def _open_settings(self):
         """打开设置对话框"""
         import os
-        try:
-            import yaml
-        except ImportError:
-            yaml = None
-
         # 隐藏预览窗口
         self.root.withdraw()
 
         def on_save(new_config):
             # 保存配置到用户配置文件
-            config_path = self._config_path or os.path.join(get_base_dir(), "user_config.yml")
-            if yaml:
-                try:
-                    content = "# 魔芋 用户配置文件\n# 此文件由设置对话框生成，可手动编辑\n\n"
-                    content += yaml.dump(new_config, allow_unicode=True, default_flow_style=False, sort_keys=False)
-                    with open(config_path, "w", encoding="utf-8") as f:
-                        f.write(content)
-                except Exception as e:
-                    print(f"保存配置失败: {e}")
+            save_user_config(new_config, self._config_path)
             
             # 立即应用新配置（不需要重启）
             self.config.update(new_config)
+            self.lock_screen_capture.update_config(self.config)
             # 更新消息显示配置
             ui_cfg = new_config.get("ui", {})
             self.message_text = ui_cfg.get("message", self.message_text)
@@ -288,7 +278,7 @@ class CameraPreviewApp:
 
     def _update_frame(self):
         """从检测线程读取最新状态并更新 UI。"""
-        frame_bgr, is_face_present = self.detector.get_latest_frame_and_state()
+        frame_bgr, is_face_present, lock_face_present = self.detector.get_latest_frame_and_states()
 
         if frame_bgr is not None and cv2 is not None:
             frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
@@ -314,6 +304,7 @@ class CameraPreviewApp:
             self.video_label.config(image=self._photo)
 
         now = time.time()
+        self.lock_screen_capture.process(frame_bgr, lock_face_present)
         if is_face_present and not self._prev_is_face_present:
             if now - self._last_action_time >= self.cooldown_seconds:
                 self._last_action_time = now

@@ -16,11 +16,6 @@ except ImportError:
     filedialog = None
     messagebox = None
 
-try:
-    import yaml
-except ImportError:
-    yaml = None
-
 # 导入 DPI 工具
 from .dpi_utils import enable_dpi_awareness, enable_dark_title_bar, scaled_size, extract_app_name
 
@@ -68,6 +63,12 @@ class SettingsDialog:
         snapshot_cfg = self.config.get("snapshot", {})
         self._snapshot_enabled = snapshot_cfg.get("enabled", True)
         self._snapshot_directory = snapshot_cfg.get("directory", "")
+
+        lock_cfg = self.config.get("lock_screen", {})
+        self._lock_screen_enabled = lock_cfg.get("enabled", True)
+        self._lock_screen_directory = lock_cfg.get("directory", "lock_screen_people")
+        self._lock_screen_min_faces = lock_cfg.get("min_faces", 1)
+        self._lock_screen_cooldown = lock_cfg.get("cooldown_seconds", 10)
         
         camera_cfg = self.config.get("camera", {})
         self._camera_index = self.config.get("camera_index", 0)
@@ -96,8 +97,8 @@ class SettingsDialog:
         self.root.resizable(False, False)
         
         # 设置窗口图标
-        from core.paths import get_base_dir
-        icon_path = os.path.join(get_base_dir(), "moyu.ico")
+        from moyu.core.paths import get_asset_path
+        icon_path = get_asset_path("moyu.ico")
         if os.path.exists(icon_path):
             try:
                 self.root.iconbitmap(icon_path)
@@ -109,7 +110,7 @@ class SettingsDialog:
         
         # 基础尺寸 (100% DPI 下的尺寸)
         base_width = 500
-        base_height = 650
+        base_height = 700
         
         # 根据 DPI 缩放窗口大小
         window_width, window_height = scaled_size(base_width, base_height, self.root)
@@ -304,6 +305,33 @@ class SettingsDialog:
                         if self.snapshot_path_entry.winfo_exists():
                             self._snapshot_directory = self.snapshot_path_entry.get()
                     except tk.TclError:
+                        pass
+
+                if hasattr(self, 'lock_screen_enabled_var'):
+                    try:
+                        self._lock_screen_enabled = self.lock_screen_enabled_var.get()
+                    except tk.TclError:
+                        pass
+
+                if hasattr(self, 'lock_screen_path_entry'):
+                    try:
+                        if self.lock_screen_path_entry.winfo_exists():
+                            self._lock_screen_directory = self.lock_screen_path_entry.get()
+                    except tk.TclError:
+                        pass
+
+                if hasattr(self, 'lock_screen_min_faces_entry'):
+                    try:
+                        if self.lock_screen_min_faces_entry.winfo_exists():
+                            self._lock_screen_min_faces = int(self.lock_screen_min_faces_entry.get())
+                    except (tk.TclError, ValueError):
+                        pass
+
+                if hasattr(self, 'lock_screen_cooldown_entry'):
+                    try:
+                        if self.lock_screen_cooldown_entry.winfo_exists():
+                            self._lock_screen_cooldown = int(self.lock_screen_cooldown_entry.get())
+                    except (tk.TclError, ValueError):
                         pass
                      
             elif self.current_tab == "camera":
@@ -662,6 +690,36 @@ class SettingsDialog:
         self.snapshot_path_entry.bind("<KeyRelease>", lambda e: self._on_snapshot_path_change())
         self.snapshot_path_entry.bind("<FocusOut>", lambda e: self._on_snapshot_path_change())
 
+        self._create_section_title(content, "Windows 锁屏抓拍")
+        self.lock_screen_enabled_var = tk.BooleanVar(value=self._lock_screen_enabled)
+        self._create_checkbox_row(
+            content,
+            "锁屏时检测到人脸自动截图",
+            self.lock_screen_enabled_var,
+        )
+
+        self.lock_screen_path_var = tk.StringVar(value=self._lock_screen_directory)
+        self.lock_screen_path_entry = self._create_input_row(
+            content,
+            "锁屏目录：",
+            self.lock_screen_path_var,
+            browse_command=self._browse_lock_screen_dir,
+        )
+
+        self.lock_screen_min_faces_var = tk.StringVar(value=str(self._lock_screen_min_faces))
+        self.lock_screen_min_faces_entry = self._create_input_row(
+            content,
+            "触发人脸数：",
+            self.lock_screen_min_faces_var,
+        )
+
+        self.lock_screen_cooldown_var = tk.StringVar(value=str(self._lock_screen_cooldown))
+        self.lock_screen_cooldown_entry = self._create_input_row(
+            content,
+            "抓拍间隔(秒)：",
+            self.lock_screen_cooldown_var,
+        )
+
     def _on_snapshot_enabled_change(self):
         """截图启用状态变化时更新实例变量"""
         try:
@@ -868,6 +926,16 @@ class SettingsDialog:
                 self.snapshot_path_entry.delete(0, tk.END)
                 self.snapshot_path_entry.insert(0, path)
 
+    def _browse_lock_screen_dir(self):
+        """浏览 Windows 锁屏截图目录。"""
+        path = filedialog.askdirectory(title="选择锁屏截图保存目录")
+        if path:
+            self._lock_screen_directory = path
+            self.lock_screen_path_var.set(path)
+            if hasattr(self, 'lock_screen_path_entry'):
+                self.lock_screen_path_entry.delete(0, tk.END)
+                self.lock_screen_path_entry.insert(0, path)
+
     def _on_cancel(self):
         """取消"""
         self.root.destroy()
@@ -892,6 +960,12 @@ class SettingsDialog:
             self.config["snapshot"] = {
                 "enabled": self._snapshot_enabled,
                 "directory": self._snapshot_directory
+            }
+            self.config["lock_screen"] = {
+                "enabled": self._lock_screen_enabled,
+                "directory": self._lock_screen_directory,
+                "min_faces": self._lock_screen_min_faces,
+                "cooldown_seconds": self._lock_screen_cooldown,
             }
 
             # 摄像头配置

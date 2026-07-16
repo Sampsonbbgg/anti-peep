@@ -2,12 +2,13 @@ import sys
 import time
 from typing import Optional
 
-from core.constants import APP_NAME
-from core.deps import cv2, mp
-from core.detector import FaceDetectionWorker
-from services.snapshot import save_snapshot
-from .tray import get_tray_manager
-from services.work_app import switch_to_work_app
+from moyu.core.constants import APP_NAME
+from moyu.core.deps import cv2, mp
+from moyu.core.detector import FaceDetectionWorker
+from moyu.services.snapshot import save_snapshot
+from moyu.services.lock_screen_capture import LockScreenCaptureService
+from moyu.services.work_app import switch_to_work_app
+from moyu.ui.tray import get_tray_manager
 
 
 def run_headless(config: dict) -> None:
@@ -21,6 +22,7 @@ def run_headless(config: dict) -> None:
 
     detector = FaceDetectionWorker(config)
     detector.start()
+    lock_screen_capture = LockScreenCaptureService(config)
 
     ui_cfg = config.get("ui", {})
     tray_seconds = int(ui_cfg.get("tray_notification_seconds", 8))
@@ -46,8 +48,10 @@ def run_headless(config: dict) -> None:
     try:
         while True:
             time.sleep(0.1)
-            frame_bgr, is_face_present = detector.get_latest_frame_and_state()
+            frame_bgr, is_face_present, lock_face_present = detector.get_latest_frame_and_states()
             now = time.time()
+
+            lock_screen_capture.process(frame_bgr, lock_face_present)
 
             if is_face_present and not prev_is_face_present:
                 if now - last_action_time >= cooldown_seconds:
@@ -66,4 +70,3 @@ def run_headless(config: dict) -> None:
         detector.join(timeout=2)
         if tray:
             tray.stop()
-

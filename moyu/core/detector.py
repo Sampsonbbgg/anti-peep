@@ -2,7 +2,7 @@ import threading
 import time
 from typing import List, Tuple
 
-from .deps import cv2, mp
+from .deps import cv2, mp, sys
 
 
 class FaceDetectionWorker(threading.Thread):
@@ -43,14 +43,21 @@ class FaceDetectionWorker(threading.Thread):
         # 摄像头分辨率（如果支持会被应用）
         self.frame_width = int(camera_cfg.get("frame_width", 0))
         self.frame_height = int(camera_cfg.get("frame_height", 0))
+        default_backend = "dshow" if sys.platform.startswith("win") else "auto"
+        self.camera_backend = str(camera_cfg.get("backend", default_backend)).lower()
 
         # 人脸数量触发阈值（与旧逻辑保持兼容）
         self.min_faces_for_alert = int(config.get("min_faces_for_alert", 2))
+        lock_cfg = config.get("lock_screen", {})
+        self.min_faces_for_lock_capture = int(lock_cfg.get("min_faces", 1))
 
         # 多帧计数器与状态
         self.face_present_frames = 0
         self.face_absent_frames = 0
         self.is_face_present = False
+        self.lock_face_present_frames = 0
+        self.lock_face_absent_frames = 0
+        self.is_lock_face_present = False
 
         # 最新一帧画面与检测结果（供 UI 读取）
         self.latest_frame_bgr = None  # type: ignore
@@ -79,6 +86,15 @@ class FaceDetectionWorker(threading.Thread):
         with self._lock:
             return self.latest_frame_bgr, self.is_face_present
 
+    def get_latest_frame_and_states(self):
+        """返回画面、普通报警状态和锁屏抓拍人脸状态。"""
+        with self._lock:
+            return (
+                self.latest_frame_bgr,
+                self.is_face_present,
+                self.is_lock_face_present,
+            )
+
     # ---------- 线程控制 ----------
 
     def stop(self):
@@ -91,7 +107,21 @@ class FaceDetectionWorker(threading.Thread):
         """在线程中初始化摄像头和 MediaPipe，避免阻塞 UI"""
         try:
             # 初始化摄像头
-            self.cap = cv2.VideoCapture(self.camera_index)
+            backend_ids = {
+                "dshow": getattr(cv2, "CAP_DSHOW", None),
+                "msmf": getattr(cv2, "CAP_MSMF", None),
+            }
+            backend_id = backend_ids.get(self.camera_backend)
+            if backend_id is None:
+                self.cap = cv2.VideoCapture(self.camera_index)
+            else:
+                self.cap = cv2.VideoCapture(self.camera_index, backend_id)
+
+            # 指定后端不可用时回退到 OpenCV 自动选择，避免部分设备无法启动。
+            if not self.cap.isOpened() and backend_id is not None:
+                self.cap.release()
+                self.cap = cv2.VideoCapture(self.camera_index)
+
             if self.frame_width > 0:
                 self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.frame_width)
             if self.frame_height > 0:
@@ -190,6 +220,25 @@ class FaceDetectionWorker(threading.Thread):
                 elif self.is_face_present and self.face_absent_frames >= self.off_frames:
                     new_state = False
 
+                if len(valid_detections) >= self.min_faces_for_lock_capture:
+                    self.lock_face_present_frames += 1
+                    self.lock_face_absent_frames = 0
+                else:
+                    self.lock_face_present_frames = 0
+                    self.lock_face_absent_frames += 1
+
+                new_lock_state = self.is_lock_face_present
+                if (
+                    not self.is_lock_face_present
+                    and self.lock_face_present_frames >= self.on_frames
+                ):
+                    new_lock_state = True
+                elif (
+                    self.is_lock_face_present
+                    and self.lock_face_absent_frames >= self.off_frames
+                ):
+                    new_lock_state = False
+
                 # ---------- 调试绘制 ----------
                 draw_frame = frame.copy()
                 box_color = (0, 0, 255) if new_state else (0, 255, 0)
@@ -213,6 +262,7 @@ class FaceDetectionWorker(threading.Thread):
                     self.latest_faces = list(valid_detections)
                     self.latest_brightness = mean_brightness
                     self.is_face_present = new_state
+                    self.is_lock_face_present = new_lock_state
 
                 time.sleep(0.01)
         finally:

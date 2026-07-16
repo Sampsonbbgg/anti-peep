@@ -75,7 +75,7 @@ def load_config(path: Optional[str] = None) -> Dict[str, Any]:
                 print(f"警告：加载配置文件失败 {candidate}: {e}")
                 continue
     if not base_cfg:
-        raise FileNotFoundError("未找到内置配置文件（config.yml 或 config.yaml）。")
+        raise FileNotFoundError("未找到内置配置文件（config/default.yml）。")
 
     # 2) 外部覆盖配置（可选）
     if path:

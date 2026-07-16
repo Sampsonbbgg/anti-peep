@@ -10,6 +10,8 @@ alert_cooldown_seconds: 15
 
 ## 摄像头画面增强、MediaPipe 人脸检测灵敏度相关参数。
 camera:
+  ## 摄像头后端。Windows 推荐 dshow，启动通常比默认的 msmf 更快；也可设为 auto 或 msmf。
+  backend: "dshow"
   ## 画面对比度系数：1.0 为不变，大于 1 画面更硬、更清晰，小于 1 更柔和。
   contrast: 1.1
   ## 亮度偏移：0 为不变，负数变暗，正数变亮，单位是像素值偏移。
@@ -41,20 +43,29 @@ snapshot:
   ## 截图保存目录，请确保该目录存在或可创建。
   directory: "people"
 
+## Windows 锁屏抓拍。程序保持运行时，锁屏后检测到人脸会单独保存照片。
+lock_screen:
+  ## 是否启用 Windows 锁屏人脸抓拍；其他系统会忽略此功能。
+  enabled: true
+  ## 锁屏照片保存目录。相对路径以程序目录为基准，也可以填写绝对路径。
+  directory: "lock_screen_people"
+  ## 锁屏时达到该人脸数量即触发抓拍，默认一张脸即可。
+  min_faces: 1
+  ## 人脸持续出现在锁屏画面中时，两次抓拍之间的间隔秒数。
+  cooldown_seconds: 10
+
 ## 工作应用切换相关配置：可以配置多个目标，通过 active 指定当前使用哪一个。
 work_app:
   ## 当前启用的目标 key，需要与 targets 里的某个名称对应，例如 "vscode" 或 "idea"。
   active: "idea"
 
   targets:
-    ## 每个目标下配置不同操作系统下的启动/激活命令，以及可选的窗口关键字。
+    ## 每个目标下配置 Windows 启动/激活命令，以及可选的窗口关键字。
     vscode:
       ## 显示名称
       display_name: "VS Code"
       ## Windows 下激活或启动 VSCode 的命令，前提是已加入 PATH；也可以写成完整 exe 路径。
       windows_command: "code"
-      ## macOS 下激活 VSCode 的命令。
-      macos_command: "open -a \"Visual Studio Code\""
       ## 可选：VSCode 窗口标题的关键字列表，用于在 Windows 中找到已运行的目标窗口尝试前置。
       window_keywords: ["Visual Studio Code"]
 
@@ -63,8 +74,6 @@ work_app:
       display_name: "IntelliJ IDEA"
       ## Windows 下激活/启动 IntelliJ IDEA 的命令，示例为默认安装路径，可按需替换。
       windows_command: "C:/Program Files/IntelliJ IDEA 2025.1/bin/idea64.exe"
-      ## macOS 下激活 IntelliJ IDEA 的命令。
-      macos_command: "open -a \"IntelliJ IDEA\""
       ## 可选：IntelliJ IDEA 窗口标题关键字列表，用于在 Windows 中前置已打开的窗口。
       window_keywords: ["IntelliJ IDEA"]
 
@@ -74,7 +83,7 @@ ui:
   message: "屏幕！切换"
   ## 提示文字显示时长（毫秒），例如 3000 表示约 3 秒。
   display_milliseconds: 3000
-  ## 是否启用系统托盘图标（Windows 生效），用于最小化到托盘和气泡提醒。macOS 下退化为仅通知。
+  ## 是否启用系统托盘图标，用于最小化到托盘和气泡提醒。
   enable_system_tray: true
   ## 点击关闭或最小化时是否隐藏到托盘，托盘菜单可退出。
   minimize_to_tray: true

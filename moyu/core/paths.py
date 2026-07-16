@@ -4,8 +4,8 @@ from typing import List
 
 
 def get_project_root() -> str:
-    """Return the project root directory (parent of core/)."""
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    """Return the project root directory (parent of the moyu package)."""
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def get_base_dir() -> str:
@@ -16,7 +16,7 @@ def get_base_dir() -> str:
 
 
 def _candidate_config_names() -> List[str]:
-    """Only YAML configs are supported now."""
+    """External YAML override file names."""
     return ["config.yml", "config.yaml"]
 
 
@@ -32,7 +32,12 @@ def get_bundled_config_paths() -> list[str]:
     """
     bundle_dir = getattr(sys, "_MEIPASS", None)  # PyInstaller onefile temp dir
     base = bundle_dir or get_project_root()
-    return [os.path.join(base, name) for name in _candidate_config_names()]
+    return [
+        os.path.join(base, "config", "default.yml"),
+        os.path.join(base, "config", "default.yaml"),
+        # 兼容旧版打包产物中的配置位置。
+        *[os.path.join(base, name) for name in _candidate_config_names()],
+    ]
 
 
 def get_external_config_paths() -> list[str]:
@@ -45,3 +50,10 @@ def get_external_config_paths() -> list[str]:
     # User config from wizard (higher priority)
     paths.extend([os.path.join(base_dir, name) for name in _candidate_user_config_names()])
     return paths
+
+
+def get_asset_path(filename: str) -> str:
+    """Return an asset path in source and PyInstaller environments."""
+    bundle_dir = getattr(sys, "_MEIPASS", None)
+    base = bundle_dir or get_project_root()
+    return os.path.join(base, "assets", filename)

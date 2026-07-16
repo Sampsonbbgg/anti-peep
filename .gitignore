@@ -39,6 +39,10 @@ logs/
 *.key
 config.json
 settings_local.py
+/config.yml
+/config.yaml
+/user_config.yml
+/user_config.yaml
 
 # --- 构建、打包结果 ---
 build/
@@ -76,7 +80,9 @@ checkpoints/
 # --- 图片 / 视频缓存（如项目中有生成） ---
 outputs/
 frames/
+people/
+lock_screen_people/
+snapshots/
 
 # --- 编译后的 C 扩展 ---
 *.so
-git

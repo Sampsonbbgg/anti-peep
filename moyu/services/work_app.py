@@ -3,7 +3,7 @@ import subprocess
 import time
 from typing import Optional, List
 
-from core.deps import sys, win32con, win32gui
+from moyu.core.deps import sys, win32con, win32gui
 
 
 def _bring_window_to_front(keywords: List[str], retries: int = 0, delay: float = 0.2) -> bool:
@@ -147,4 +147,3 @@ def switch_to_work_app(config: dict) -> None:
                 _mac_activate_app_from_command(cmd, window_keywords)
     except Exception as e:
         print(f"切换到工作应用失败: {e}")
-

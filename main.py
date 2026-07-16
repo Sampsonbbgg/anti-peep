@@ -8,14 +8,9 @@
 
 import os
 
-from core.config_loader import load_config
-from core.deps import tk
-from core.paths import get_base_dir
-
-
-def get_user_config_path() -> str:
-    """获取用户配置文件路径"""
-    return os.path.join(get_base_dir(), "user_config.yml")
+from moyu.core.config_loader import load_config
+from moyu.core.config_store import get_user_config_path, save_user_config
+from moyu.core.deps import tk
 
 
 def check_first_run() -> bool:
@@ -29,7 +24,7 @@ def run_setup_wizard() -> bool:
         return False
 
     try:
-        from ui.setup_wizard import SetupWizard, save_user_config
+        from moyu.ui.setup_wizard import SetupWizard
 
         def on_complete(config):
             config_path = get_user_config_path()
@@ -60,7 +55,7 @@ def main():
         if tk is not None:
             try:
                 print("正在初始化摄像头...")
-                from ui.ui_app import CameraPreviewApp
+                from moyu.ui.ui_app import CameraPreviewApp
                 
                 print("正在启动界面...")
                 app = CameraPreviewApp(config)
@@ -72,7 +67,7 @@ def main():
                 traceback.print_exc()
 
         # 回退到无界面模式
-        from ui.headless import run_headless
+        from moyu.runners.headless import run_headless
         run_headless(config)
     except Exception as e:
         print(f"程序错误: {e}")

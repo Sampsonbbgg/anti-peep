@@ -15,12 +15,9 @@ except ImportError:
     filedialog = None
     messagebox = None
 
-try:
-    import yaml
-except ImportError:
-    yaml = None
-
 # 导入 DPI 工具
+from moyu.core.config_store import load_user_config, save_user_config
+
 from .dpi_utils import enable_dpi_awareness, enable_dark_title_bar, scaled_size, extract_app_name
 
 
@@ -505,37 +502,6 @@ class SetupWizard:
     def get_config(self) -> Dict[str, Any]:
         """获取配置数据"""
         return self.config_data
-
-
-def save_user_config(config: Dict[str, Any], path: str) -> bool:
-    """保存用户配置到 YAML 文件"""
-    if yaml is None:
-        print("警告：未安装 PyYAML，无法保存配置")
-        return False
-
-    try:
-        # 添加注释头
-        content = "# 魔芋 用户配置文件\n# 此文件由配置向导自动生成，可手动编辑\n\n"
-        content += yaml.dump(config, allow_unicode=True, default_flow_style=False, sort_keys=False)
-
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(content)
-        return True
-    except Exception as e:
-        print(f"保存配置失败: {e}")
-        return False
-
-
-def load_user_config(path: str) -> Optional[Dict[str, Any]]:
-    """加载用户配置"""
-    if yaml is None or not os.path.exists(path):
-        return None
-
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
-    except Exception:
-        return None
 
 
 if __name__ == "__main__":
