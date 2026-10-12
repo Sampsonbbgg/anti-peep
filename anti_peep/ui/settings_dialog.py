@@ -913,7 +913,7 @@ class SettingsDialog:
         self.pg_max_yaw_entry = self._create_input_row(
             content, "左右转头角度（度）：", self.pg_max_yaw_var)
 
-        self.pg_blur_radius_var = tk.StringVar(value=str(self._pg_shield.get("blur_radius", 28)))
+        self.pg_blur_radius_var = tk.StringVar(value=str(self._pg_shield.get("blur_radius", 10)))
         self.pg_blur_radius_entry = self._create_input_row(
             content, "模糊强度：", self.pg_blur_radius_var)
 
