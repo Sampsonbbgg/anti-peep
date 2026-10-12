@@ -1,4 +1,4 @@
-"""MoYu privacy camera monitor."""
+"""Anti-Peep privacy camera monitor."""
 
 from .core.constants import APP_NAME
 

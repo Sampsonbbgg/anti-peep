@@ -1,6 +1,6 @@
 import unittest
 
-from moyu.services import monitors
+from anti_peep.services import monitors
 
 
 class MonitorTests(unittest.TestCase):

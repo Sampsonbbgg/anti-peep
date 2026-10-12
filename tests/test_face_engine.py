@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from moyu.core import face_engine
+from anti_peep.core import face_engine
 
 
 class EnsureModelsTests(unittest.TestCase):

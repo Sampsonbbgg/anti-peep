@@ -2,8 +2,8 @@ import os
 import time
 from typing import Optional
 
-from moyu.core.deps import cv2
-from moyu.core.paths import get_base_dir
+from anti_peep.core.deps import cv2
+from anti_peep.core.paths import get_base_dir
 
 
 def get_snapshot_dir(config: dict, section: str = "snapshot") -> Optional[str]:

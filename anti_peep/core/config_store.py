@@ -24,7 +24,7 @@ def save_user_config(config: Dict[str, Any], path: Optional[str] = None) -> bool
 
     config_path = path or get_user_config_path()
     try:
-        content = "# 魔芋 用户配置文件\n# 此文件由程序自动生成，可手动编辑\n\n"
+        content = "# Anti-Peep 用户配置文件\n# 此文件由程序自动生成，可手动编辑\n\n"
         content += yaml.dump(
             config,
             allow_unicode=True,

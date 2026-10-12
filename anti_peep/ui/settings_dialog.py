@@ -122,8 +122,8 @@ class SettingsDialog:
         self.root.resizable(False, False)
         
         # 设置窗口图标
-        from moyu.core.paths import get_asset_path
-        icon_path = get_asset_path("moyu.ico")
+        from anti_peep.core.paths import get_asset_path
+        icon_path = get_asset_path("anti-peep.ico")
         if os.path.exists(icon_path):
             try:
                 self.root.iconbitmap(icon_path)
@@ -933,9 +933,9 @@ class SettingsDialog:
     def _open_enroll(self):
         """打开主人人脸录入对话框。"""
         try:
-            from moyu.core.face_engine import FaceEngine
-            from moyu.core.owner_store import OwnerStore
-            from moyu.core.paths import get_models_dir, get_owner_file_path
+            from anti_peep.core.face_engine import FaceEngine
+            from anti_peep.core.owner_store import OwnerStore
+            from anti_peep.core.paths import get_models_dir, get_owner_file_path
             from .enroll_dialog import EnrollDialog
 
             store = OwnerStore(

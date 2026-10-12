@@ -1,6 +1,6 @@
 import unittest
 
-from moyu.core.config_loader import load_config
+from anti_peep.core.config_loader import load_config
 
 
 class ConfigPrivacyTests(unittest.TestCase):

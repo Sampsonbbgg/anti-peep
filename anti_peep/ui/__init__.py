@@ -1,4 +1,4 @@
-# UI modules for moyu
+# UI modules for anti_peep
 from .tray import get_tray_manager, SystemTrayManager, DummyTrayManager
 
 __all__ = [

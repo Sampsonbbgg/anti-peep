@@ -1,6 +1,6 @@
-# 魔芋 (MoYu) 🛡️👀
+# Anti-Peep 🛡️👀
 
-**魔芋**是一款面向 Windows 的轻量级"防偷窥"小工具：通过摄像头实时检测画面中是否出现多张人脸，触发后会自动切换到工作软件，并可抓拍留证。
+**Anti-Peep**是一款面向 Windows 的轻量级"防偷窥"小工具：通过摄像头实时检测画面中是否出现多张人脸，触发后会自动切换到工作软件，并可抓拍留证。
 
 > 🎉 **v1.1.0 更新**: 全新图形化配置界面，让设置更加简单直观！
 
@@ -20,7 +20,7 @@
 ## 🖼️ 软件界面
 
 ### 配置向导
-首次启动时，魔芋会自动弹出配置向导，帮助您快速完成初始设置：
+首次启动时，Anti-Peep会自动弹出配置向导，帮助您快速完成初始设置：
 
 <p align="center">
   <img src="docs/screenshots/setup_wizard.png" alt="配置向导" width="500">
@@ -85,7 +85,7 @@
 ## 📁 项目结构
 
 ```
-moyu/
+anti-peep/
 ├── main.py              # 程序入口
 ├── main.spec            # PyInstaller 打包配置
 ├── requirements.txt     # Python 依赖
@@ -94,7 +94,7 @@ moyu/
 ├── config/
 │   └── default.yml      # 内置默认配置
 │
-├── moyu/                # Python 主包
+├── anti_peep/                # Python 主包
 │   ├── core/            # 配置、路径、依赖与人脸检测
 │   ├── platforms/       # 操作系统能力（Windows 锁屏状态）
 │   ├── runners/         # 无界面运行入口
@@ -114,8 +114,8 @@ moyu/
 ### 2. 克隆并安装依赖
 
 ```bash
-git clone https://github.com/x7722/moyu.git
-cd moyu
+git clone https://github.com/Sampsonbbgg/anti-peep.git
+cd anti-peep
 python -m pip install -r requirements.txt
 ```
 
@@ -164,7 +164,7 @@ snapshot:
   directory: snapshots
 lock_screen:
   enabled: true
-  directory: "D:/MoYu/locked"
+  directory: "D:/Anti-Peep/locked"
   min_faces: 1
   cooldown_seconds: 10
 ```
@@ -179,7 +179,7 @@ lock_screen:
 python -m pip install pyinstaller
 pyinstaller main.spec
 ```
-产物位于 `dist/moyu.exe`
+产物位于 `dist/anti-peep.exe`
 
 ## ❓ 常见问题
 

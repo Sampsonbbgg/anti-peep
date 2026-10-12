@@ -4,9 +4,9 @@
 import tkinter as tk
 from typing import Optional
 
-from moyu.core.deps import cv2, Image, ImageTk
-from moyu.core.face_engine import FaceEngine, LABEL_OWNER
-from moyu.core.owner_store import OwnerStore
+from anti_peep.core.deps import cv2, Image, ImageTk
+from anti_peep.core.face_engine import FaceEngine, LABEL_OWNER
+from anti_peep.core.owner_store import OwnerStore
 
 
 class Theme:

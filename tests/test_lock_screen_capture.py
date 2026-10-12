@@ -3,9 +3,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from moyu.platforms.windows_session import WindowsSessionState
-from moyu.services.lock_screen_capture import LockScreenCaptureService
-from moyu.services import snapshot
+from anti_peep.platforms.windows_session import WindowsSessionState
+from anti_peep.services.lock_screen_capture import LockScreenCaptureService
+from anti_peep.services import snapshot
 
 
 class FakeSessionState:

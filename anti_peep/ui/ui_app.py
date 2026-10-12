@@ -8,19 +8,19 @@ if _sys.platform.startswith('win'):
     try:
         import ctypes
         # 设置应用 ID，让 Windows 任务栏正确显示图标而不是 Python 图标
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('moyu.app.v1')
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('anti_peep.app.v1')
     except Exception:
         pass
 
-from moyu.core.constants import APP_NAME
-from moyu.core.config_store import save_user_config
-from moyu.core.deps import sys, tk, Image, ImageTk, cv2
-from moyu.core.analysis_worker import FaceAnalysisWorker
-from moyu.core.paths import get_asset_path
-from moyu.services.snapshot import save_snapshot
-from moyu.services.lock_screen_capture import LockScreenCaptureService
+from anti_peep.core.constants import APP_NAME
+from anti_peep.core.config_store import save_user_config
+from anti_peep.core.deps import sys, tk, Image, ImageTk, cv2
+from anti_peep.core.analysis_worker import FaceAnalysisWorker
+from anti_peep.core.paths import get_asset_path
+from anti_peep.services.snapshot import save_snapshot
+from anti_peep.services.lock_screen_capture import LockScreenCaptureService
 from .tray import get_tray_manager
-from moyu.services.work_app import switch_to_work_app
+from anti_peep.services.work_app import switch_to_work_app
 from .settings_dialog import SettingsDialog
 from .dpi_utils import enable_dpi_awareness, enable_dark_title_bar
 
@@ -86,7 +86,7 @@ class CameraPreviewApp:
         self.root.configure(bg=self.theme_bg)
         
         # 设置窗口图标（修复任务栏显示 Python 图标的问题）
-        icon_path = get_asset_path("moyu.ico")
+        icon_path = get_asset_path("anti-peep.ico")
         if os.path.exists(icon_path):
             try:
                 self.root.iconbitmap(icon_path)
@@ -175,13 +175,13 @@ class CameraPreviewApp:
 
     def _init_privacy(self, config):
         """构建主人特征库、人脸引擎、防护状态机与遮罩层。"""
-        from moyu.core.face_engine import FaceEngine
-        from moyu.core.owner_store import OwnerStore
-        from moyu.core.paths import get_models_dir, get_owner_file_path
-        from moyu.services.privacy_guard import PrivacyGuard
-        from moyu.services.screen_shield import ScreenShield
-        from moyu.platforms.windows_session import WindowsSessionState
-        from moyu.services.hotkey import GlobalHotkey
+        from anti_peep.core.face_engine import FaceEngine
+        from anti_peep.core.owner_store import OwnerStore
+        from anti_peep.core.paths import get_models_dir, get_owner_file_path
+        from anti_peep.services.privacy_guard import PrivacyGuard
+        from anti_peep.services.screen_shield import ScreenShield
+        from anti_peep.platforms.windows_session import WindowsSessionState
+        from anti_peep.services.hotkey import GlobalHotkey
 
         identity_cfg = config.get("identity", {})
         self.owner_store = OwnerStore(
@@ -227,7 +227,7 @@ class CameraPreviewApp:
         if self.paused:
             self.shield.set_mode("none")
         state = "已暂停防护" if self.paused else "已恢复防护"
-        print(f"[魔芋] {state}（Ctrl+Alt+P）")
+        print(f"[Anti-Peep] {state}（Ctrl+Alt+P）")
         if self.tray:
             self.tray.show_notification(APP_NAME, state, self.tray_notification_seconds)
 
@@ -256,7 +256,7 @@ class CameraPreviewApp:
         if self.tray and not self._tray_hint_shown:
             # self.tray.show_notification(
             #     APP_NAME,
-            #     "魔芋 已最小化到托盘，双击图标可恢复。",
+            #     "Anti-Peep 已最小化到托盘，双击图标可恢复。",
             #     self.tray_notification_seconds,
             # )
             self._tray_hint_shown = True

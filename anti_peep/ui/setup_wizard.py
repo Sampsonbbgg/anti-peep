@@ -16,7 +16,7 @@ except ImportError:
     messagebox = None
 
 # 导入 DPI 工具
-from moyu.core.config_store import load_user_config, save_user_config
+from anti_peep.core.config_store import load_user_config, save_user_config
 
 from .dpi_utils import enable_dpi_awareness, enable_dark_title_bar, scaled_size, extract_app_name
 
@@ -62,7 +62,7 @@ class SetupWizard:
     def _setup_ui(self):
         """构建向导 UI"""
         self.root = tk.Tk()
-        self.root.title("魔芋 配置向导")
+        self.root.title("Anti-Peep 配置向导")
         self.root.configure(bg=Theme.BG_DARK)
         self.root.resizable(False, False)
         
@@ -91,7 +91,7 @@ class SetupWizard:
         # 标题
         title_label = tk.Label(
             self.main_frame,
-            text="🍠 欢迎使用 魔芋",
+            text="🛡️ 欢迎使用 Anti-Peep",
             font=("Microsoft YaHei", 20, "bold"),
             fg=Theme.TEXT,
             bg=Theme.BG_DARK
@@ -353,7 +353,7 @@ class SetupWizard:
         input_frame.pack(fill="x", pady=5)
 
         # 默认路径
-        default_snapshot_dir = os.path.join(os.path.expanduser("~"), "Pictures", "魔芋")
+        default_snapshot_dir = os.path.join(os.path.expanduser("~"), "Pictures", "Anti-Peep")
         self.snapshot_path_var = tk.StringVar(value=default_snapshot_dir)
 
         self.snapshot_path_entry = tk.Entry(

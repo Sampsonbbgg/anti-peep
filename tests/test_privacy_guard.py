@@ -1,7 +1,7 @@
 import unittest
 
-from moyu.core.analysis_worker import Analysis
-from moyu.services.privacy_guard import PrivacyGuard
+from anti_peep.core.analysis_worker import Analysis
+from anti_peep.services.privacy_guard import PrivacyGuard
 
 
 def cfg():

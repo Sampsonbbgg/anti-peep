@@ -2,8 +2,8 @@ import os
 import threading
 from typing import Optional, Callable
 
-from moyu.core.deps import sys, win32con, win32gui
-from moyu.core.paths import get_asset_path
+from anti_peep.core.deps import sys, win32con, win32gui
+from anti_peep.core.paths import get_asset_path
 
 
 class SystemTrayManager:
@@ -85,7 +85,7 @@ class SystemTrayManager:
     def _load_custom_icon(self):
         """尝试从程序目录加载自定义图标文件。"""
         try:
-            icon_path = get_asset_path("moyu.ico")
+            icon_path = get_asset_path("anti-peep.ico")
             
             if os.path.exists(icon_path):
                 # 使用 LoadImage 加载 ICO 文件

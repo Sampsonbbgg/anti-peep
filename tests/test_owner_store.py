@@ -4,7 +4,7 @@ import unittest
 
 import numpy as np
 
-from moyu.core.owner_store import OwnerStore
+from anti_peep.core.owner_store import OwnerStore
 
 
 def _unit(v):

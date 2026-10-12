@@ -60,7 +60,7 @@ class SplashScreen:
         # 应用名称
         title_label = tk.Label(
             frame,
-            text="魔芋",
+            text="Anti-Peep",
             font=("Microsoft YaHei", 18, "bold"),
             bg=bg_color,
             fg="white"

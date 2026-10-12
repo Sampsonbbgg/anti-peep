@@ -4,7 +4,7 @@ from typing import List
 
 
 def get_project_root() -> str:
-    """Return the project root directory (parent of the moyu package)."""
+    """Return the project root directory (parent of the anti_peep package)."""
     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 

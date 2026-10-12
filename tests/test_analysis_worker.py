@@ -1,6 +1,6 @@
 import unittest
 
-from moyu.core.analysis_worker import FaceAnalysisWorker
+from anti_peep.core.analysis_worker import FaceAnalysisWorker
 
 
 class SummarizeTests(unittest.TestCase):

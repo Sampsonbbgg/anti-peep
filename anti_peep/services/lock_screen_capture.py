@@ -3,8 +3,8 @@
 import time
 from typing import Callable, Optional
 
-from moyu.platforms.windows_session import WindowsSessionState
-from moyu.services.snapshot import save_snapshot
+from anti_peep.platforms.windows_session import WindowsSessionState
+from anti_peep.services.snapshot import save_snapshot
 
 
 class LockScreenCaptureService:

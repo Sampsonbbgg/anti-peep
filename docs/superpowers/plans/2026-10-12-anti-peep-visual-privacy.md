@@ -1,14 +1,14 @@
-# 魔芋 MoYu 视觉防护扩展 实现计划
+# Anti-Peep 视觉防护扩展 实现计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在魔芋 MoYu 上新增"人脸身份识别 + 视觉防护（模糊/遮屏）"链路，实现多人偷看→全屏模糊、陌生人/人离开→全屏遮屏、抓拍留证。
+**Goal:** 在Anti-Peep 上新增"人脸身份识别 + 视觉防护（模糊/遮屏）"链路，实现多人偷看→全屏模糊、陌生人/人离开→全屏遮屏、抓拍留证。
 
 **Architecture:** 用 OpenCV YuNet+SFace 做人脸检测与身份比对，替代 MediaPipe 承担检测；新增 `PrivacyGuard` 状态机把"人脸状态"决策为"防护模式"，由 `ScreenShield` 用多显示器无边框置顶窗口呈现；主循环在 `ui_app` 中编排。
 
 **Tech Stack:** Python 3.14、opencv-contrib-python 5.x（YuNet/SFace）、Pillow（ImageGrab/GaussianBlur）、pywin32（窗口样式）、tkinter（遮罩窗口）、unittest。
 
-**Spec:** `docs/superpowers/specs/2026-10-12-moyu-visual-privacy-design.md`
+**Spec:** `docs/superpowers/specs/2026-10-12-anti-peep-visual-privacy-design.md`
 
 ## Global Constraints
 
@@ -17,7 +17,7 @@
 - 模型下载源固定为 `hf-mirror.com`（`raw.githubusercontent.com`/`huggingface.co` 在本机不可达）。
 - 身份特征维度 128，做 L2 归一化；主人判定默认余弦阈值 `0.363`。
 - 不真锁 Windows；防护仅"视觉"（模糊/遮屏）。
-- 抓拍复用 `moyu/services/snapshot.py` 的 `save_snapshot`。
+- 抓拍复用 `anti_peep/services/snapshot.py` 的 `save_snapshot`。
 - 提交/推送需用户明确同意；计划中的 commit 步骤为可选项，执行前询问。
 
 ---
@@ -25,7 +25,7 @@
 ### Task 1: 主人人脸库 OwnerStore
 
 **Files:**
-- Create: `moyu/core/owner_store.py`
+- Create: `anti_peep/core/owner_store.py`
 - Test: `tests/test_owner_store.py`
 
 **Interfaces:**
@@ -42,7 +42,7 @@
 # tests/test_owner_store.py
 import os, tempfile, unittest
 import numpy as np
-from moyu.core.owner_store import OwnerStore
+from anti_peep.core.owner_store import OwnerStore
 
 
 def _unit(v):
@@ -78,12 +78,12 @@ class OwnerStoreTests(unittest.TestCase):
 - [ ] **Step 2: 运行确认失败**
 
 Run: `.venv\Scripts\python.exe -m unittest tests.test_owner_store -v`
-Expected: FAIL（`ModuleNotFoundError: moyu.core.owner_store`）
+Expected: FAIL（`ModuleNotFoundError: anti_peep.core.owner_store`）
 
 - [ ] **Step 3: 实现 OwnerStore**
 
 ```python
-# moyu/core/owner_store.py
+# anti_peep/core/owner_store.py
 import json
 import os
 from typing import List, Tuple
@@ -160,7 +160,7 @@ Expected: PASS（2 tests）
 - [ ] **Step 5: 提交（可选，需用户同意）**
 
 ```bash
-git add moyu/core/owner_store.py tests/test_owner_store.py
+git add anti_peep/core/owner_store.py tests/test_owner_store.py
 git commit -m "feat: add OwnerStore for owner face embeddings"
 ```
 
@@ -169,7 +169,7 @@ git commit -m "feat: add OwnerStore for owner face embeddings"
 ### Task 2: FaceEngine（YuNet 检测 + SFace 特征）+ 模型下载
 
 **Files:**
-- Create: `moyu/core/face_engine.py`
+- Create: `anti_peep/core/face_engine.py`
 - Test: `tests/test_face_engine.py`
 
 **Interfaces:**
@@ -191,8 +191,8 @@ import os, tempfile, unittest, urllib.request
 from unittest.mock import patch
 import numpy as np
 
-from moyu.core import face_engine
-from moyu.core.owner_store import OwnerStore
+from anti_peep.core import face_engine
+from anti_peep.core.owner_store import OwnerStore
 
 
 class EnsureModelsTests(unittest.TestCase):
@@ -230,7 +230,7 @@ Expected: FAIL（模块不存在）
 - [ ] **Step 3: 实现 FaceEngine 与下载**
 
 ```python
-# moyu/core/face_engine.py
+# anti_peep/core/face_engine.py
 import os
 import urllib.request
 from typing import Tuple
@@ -327,14 +327,14 @@ Expected: PASS
 - [ ] **Step 5: 冒烟（真实模型，联网）**
 
 ```bash
-.venv\Scripts\python.exe -c "from moyu.core.face_engine import ensure_models; print(ensure_models('models'))"
+.venv\Scripts\python.exe -c "from anti_peep.core.face_engine import ensure_models; print(ensure_models('models'))"
 ```
 Expected: 打印两个模型路径，`models/` 下出现 232KB 与 38MB 的 onnx。
 
 - [ ] **Step 6: 提交（可选）**
 
 ```bash
-git add moyu/core/face_engine.py tests/test_face_engine.py
+git add anti_peep/core/face_engine.py tests/test_face_engine.py
 git commit -m "feat: add FaceEngine (YuNet+SFace) and model auto-download"
 ```
 
@@ -343,7 +343,7 @@ git commit -m "feat: add FaceEngine (YuNet+SFace) and model auto-download"
 ### Task 3: FaceAnalysisWorker（检测线程 + 身份汇总）
 
 **Files:**
-- Create: `moyu/core/analysis_worker.py`
+- Create: `anti_peep/core/analysis_worker.py`
 - Test: `tests/test_analysis_worker.py`
 
 **Interfaces:**
@@ -358,7 +358,7 @@ git commit -m "feat: add FaceEngine (YuNet+SFace) and model auto-download"
 ```python
 # tests/test_analysis_worker.py
 import unittest
-from moyu.core.analysis_worker import FaceAnalysisWorker, Analysis
+from anti_peep.core.analysis_worker import FaceAnalysisWorker, Analysis
 
 
 class SummarizeTests(unittest.TestCase):
@@ -396,7 +396,7 @@ Expected: FAIL（模块不存在）
 - [ ] **Step 3: 实现 Worker**
 
 ```python
-# moyu/core/analysis_worker.py
+# anti_peep/core/analysis_worker.py
 import threading
 import time
 from dataclasses import dataclass, field
@@ -510,7 +510,7 @@ Expected: PASS
 - [ ] **Step 5: 提交（可选）**
 
 ```bash
-git add moyu/core/analysis_worker.py tests/test_analysis_worker.py
+git add anti_peep/core/analysis_worker.py tests/test_analysis_worker.py
 git commit -m "feat: add FaceAnalysisWorker producing identity-labeled analysis"
 ```
 
@@ -519,7 +519,7 @@ git commit -m "feat: add FaceAnalysisWorker producing identity-labeled analysis"
 ### Task 4: PrivacyGuard 状态机
 
 **Files:**
-- Create: `moyu/services/privacy_guard.py`
+- Create: `anti_peep/services/privacy_guard.py`
 - Test: `tests/test_privacy_guard.py`
 
 **Interfaces:**
@@ -534,8 +534,8 @@ git commit -m "feat: add FaceAnalysisWorker producing identity-labeled analysis"
 ```python
 # tests/test_privacy_guard.py
 import unittest
-from moyu.core.analysis_worker import Analysis
-from moyu.services.privacy_guard import PrivacyGuard
+from anti_peep.core.analysis_worker import Analysis
+from anti_peep.services.privacy_guard import PrivacyGuard
 
 
 def cfg():
@@ -592,7 +592,7 @@ Expected: FAIL（模块不存在）
 - [ ] **Step 3: 实现 PrivacyGuard**
 
 ```python
-# moyu/services/privacy_guard.py
+# anti_peep/services/privacy_guard.py
 from dataclasses import dataclass
 from typing import Optional
 
@@ -671,7 +671,7 @@ Expected: PASS
 - [ ] **Step 5: 提交（可选）**
 
 ```bash
-git add moyu/services/privacy_guard.py tests/test_privacy_guard.py
+git add anti_peep/services/privacy_guard.py tests/test_privacy_guard.py
 git commit -m "feat: add PrivacyGuard state machine (peep/stranger/away)"
 ```
 
@@ -680,8 +680,8 @@ git commit -m "feat: add PrivacyGuard state machine (peep/stranger/away)"
 ### Task 5: ScreenShield（多显示器模糊/遮屏）
 
 **Files:**
-- Create: `moyu/services/monitors.py`（显示器枚举，纯函数便于测试）
-- Create: `moyu/services/screen_shield.py`
+- Create: `anti_peep/services/monitors.py`（显示器枚举，纯函数便于测试）
+- Create: `anti_peep/services/screen_shield.py`
 - Test: `tests/test_monitors.py`
 
 **Interfaces:**
@@ -695,7 +695,7 @@ git commit -m "feat: add PrivacyGuard state machine (peep/stranger/away)"
 ```python
 # tests/test_monitors.py
 import unittest
-from moyu.services import monitors
+from anti_peep.services import monitors
 
 
 class MonitorTests(unittest.TestCase):
@@ -715,7 +715,7 @@ Expected: FAIL
 - [ ] **Step 3: 实现 monitors.py**
 
 ```python
-# moyu/services/monitors.py
+# anti_peep/services/monitors.py
 import ctypes
 import sys
 from ctypes import wintypes
@@ -763,7 +763,7 @@ Expected: PASS
 - [ ] **Step 5: 实现 ScreenShield**
 
 ```python
-# moyu/services/screen_shield.py
+# anti_peep/services/screen_shield.py
 import tkinter as tk
 from typing import List
 
@@ -892,7 +892,7 @@ class ScreenShield:
 - [ ] **Step 6: 提交（可选）**
 
 ```bash
-git add moyu/services/monitors.py moyu/services/screen_shield.py tests/test_monitors.py
+git add anti_peep/services/monitors.py anti_peep/services/screen_shield.py tests/test_monitors.py
 git commit -m "feat: add multi-monitor ScreenShield (blur/cover)"
 ```
 
@@ -902,7 +902,7 @@ git commit -m "feat: add multi-monitor ScreenShield (blur/cover)"
 
 **Files:**
 - Modify: `config/default.yml`（追加 `identity`、`privacy_guard` 两节）
-- Modify: `moyu/core/paths.py`（新增 `get_models_dir()`、`get_owner_file_path()`）
+- Modify: `anti_peep/core/paths.py`（新增 `get_models_dir()`、`get_owner_file_path()`）
 - Test: `tests/test_config_privacy.py`
 
 **Interfaces:**
@@ -914,7 +914,7 @@ git commit -m "feat: add multi-monitor ScreenShield (blur/cover)"
 ```python
 # tests/test_config_privacy.py
 import unittest
-from moyu.core.config_loader import load_config
+from anti_peep.core.config_loader import load_config
 
 
 class ConfigPrivacyTests(unittest.TestCase):
@@ -1003,7 +1003,7 @@ Expected: PASS
 - [ ] **Step 6: 提交（可选）**
 
 ```bash
-git add config/default.yml moyu/core/paths.py tests/test_config_privacy.py
+git add config/default.yml anti_peep/core/paths.py tests/test_config_privacy.py
 git commit -m "feat: add privacy_guard/identity config defaults"
 ```
 
@@ -1012,8 +1012,8 @@ git commit -m "feat: add privacy_guard/identity config defaults"
 ### Task 7: 主人人脸录入对话框 + 设置页「防偷窥」标签
 
 **Files:**
-- Create: `moyu/ui/enroll_dialog.py`
-- Modify: `moyu/ui/settings_dialog.py`（新增标签与内容，`_show_tab` 分发）
+- Create: `anti_peep/ui/enroll_dialog.py`
+- Modify: `anti_peep/ui/settings_dialog.py`（新增标签与内容，`_show_tab` 分发）
 - Test: 手动（GUI 无法单测）
 
 **Interfaces:**
@@ -1040,7 +1040,7 @@ Expected: 设置窗口出现「防偷窥」标签；能录入并保存主人特�
 - [ ] **Step 4: 提交（可选）**
 
 ```bash
-git add moyu/ui/enroll_dialog.py moyu/ui/settings_dialog.py
+git add anti_peep/ui/enroll_dialog.py anti_peep/ui/settings_dialog.py
 git commit -m "feat: add anti-peep settings tab and owner enrollment dialog"
 ```
 
@@ -1049,8 +1049,8 @@ git commit -m "feat: add anti-peep settings tab and owner enrollment dialog"
 ### Task 8: 主循环编排接入（ui_app / headless）
 
 **Files:**
-- Modify: `moyu/ui/ui_app.py`（用 FaceAnalysisWorker + PrivacyGuard + ScreenShield 替换原告警动作）
-- Modify: `moyu/runners/headless.py`（同样接入，仅日志）
+- Modify: `anti_peep/ui/ui_app.py`（用 FaceAnalysisWorker + PrivacyGuard + ScreenShield 替换原告警动作）
+- Modify: `anti_peep/runners/headless.py`（同样接入，仅日志）
 - Test: 手动
 
 **Interfaces:**
@@ -1084,7 +1084,7 @@ Expected: 全绿（含原有 `test_lock_screen_capture`）。
 - [ ] **Step 5: 提交（可选）**
 
 ```bash
-git add moyu/ui/ui_app.py moyu/runners/headless.py
+git add anti_peep/ui/ui_app.py anti_peep/runners/headless.py
 git commit -m "feat: wire PrivacyGuard and ScreenShield into app loop"
 ```
 
@@ -1100,7 +1100,7 @@ git commit -m "feat: wire PrivacyGuard and ScreenShield into app loop"
 - [ ] **Step 1: 更新 spec**
 
 - `datas` 追加 `('models', 'models')`（若目录存在）。
-- `hiddenimports` 追加：`moyu.core.face_engine`、`moyu.core.owner_store`、`moyu.core.analysis_worker`、`moyu.services.privacy_guard`、`moyu.services.screen_shield`、`moyu.services.monitors`、`moyu.ui.enroll_dialog`。
+- `hiddenimports` 追加：`anti_peep.core.face_engine`、`anti_peep.core.owner_store`、`anti_peep.core.analysis_worker`、`anti_peep.services.privacy_guard`、`anti_peep.services.screen_shield`、`anti_peep.services.monitors`、`anti_peep.ui.enroll_dialog`。
 - `collect_data_files('mediapipe')` 保留（兼容）。
 
 - [ ] **Step 2: 更新 .gitignore**
@@ -1110,7 +1110,7 @@ git commit -m "feat: wire PrivacyGuard and ScreenShield into app loop"
 - [ ] **Step 3: 构建冒烟（可选，需用户确认是否打包）**
 
 Run: `.venv\Scripts\pyinstaller.exe main.spec --noconfirm`
-Expected: `dist/moyu.exe` 生成；运行后能加载模型并启动预览。
+Expected: `dist/anti-peep.exe` 生成；运行后能加载模型并启动预览。
 
 - [ ] **Step 4: 提交（可选）**
 

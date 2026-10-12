@@ -1,4 +1,4 @@
-# 魔芋 MoYu 视觉防护扩展 · 设计稿
+# Anti-Peep 视觉防护扩展 · 设计稿
 
 - 日期：2026-10-12
 - 基于：GitHub `x7722/moyu`（MIT）本地克隆于 `D:\anti-peep\moyu`
@@ -39,27 +39,27 @@
 
 ### 2.1 新增模块
 
-- `moyu/core/face_engine.py`
+- `anti_peep/core/face_engine.py`
   - `FaceEngine`：`load()`（YuNet+SFace）、`detect(frame) -> list[Face]`、`embed(frame, face) -> np.ndarray`、`identify(emb) -> (label, sim)`。
   - 主人库：`OwnerStore`，读写 `owner_faces.json`（多张 128 维归一化特征 + 阈值）。
   - 模型下载：缺失时从 `hf-mirror.com` 拉取，存 `models/`。
-- `moyu/core/worker.py`（或扩展 `detector.py`）
+- `anti_peep/core/worker.py`（或扩展 `detector.py`）
   - `FaceAnalysisWorker(threading.Thread)`：保留旧接口 `get_latest_frame_and_states()`，新增 `get_analysis() -> Analysis`（含 `faces`、`face_count`、`has_owner`、`has_stranger`）。
   - 去抖逻辑沿用（on/off frames）。
-- `moyu/services/privacy_guard.py`
+- `anti_peep/services/privacy_guard.py`
   - `PrivacyGuard.update(analysis, now, session_locked) -> ShieldDecision`。
   - 规则：peep（≥2 脸）、stranger（连续 stranger ≥ hold_seconds）、away（连续无脸 ≥ away_seconds）；带冷却与解除条件。
-- `moyu/services/screen_shield.py`
+- `anti_peep/services/screen_shield.py`
   - `ScreenShield.set_mode(mode)`；`list_monitors()` 用 `EnumDisplayMonitors`；每屏一个 Toplevel。
   - blur：`ImageGrab.grab(all_screens=True)` → `GaussianBlur` → 定时刷新；`WS_EX_TRANSPARENT` 穿透。
   - cover：不透明，`grab_set`/拦截输入。
-- `moyu/ui/enroll_dialog.py`：主人人脸录入（倒计时 + 采集 N 张 + 写库）。
+- `anti_peep/ui/enroll_dialog.py`：主人人脸录入（倒计时 + 采集 N 张 + 写库）。
 
 ### 2.2 改动模块
 
-- `moyu/ui/ui_app.py`：主循环改为驱动 `PrivacyGuard` + `ScreenShield`；保留托盘；新增「暂停防护」入口。
-- `moyu/ui/settings_dialog.py`：新增「🛡 防偷窥」标签页。
-- `moyu/ui/setup_wizard.py`：可选加入"立即录入主人人脸"。
+- `anti_peep/ui/ui_app.py`：主循环改为驱动 `PrivacyGuard` + `ScreenShield`；保留托盘；新增「暂停防护」入口。
+- `anti_peep/ui/settings_dialog.py`：新增「🛡 防偷窥」标签页。
+- `anti_peep/ui/setup_wizard.py`：可选加入"立即录入主人人脸"。
 - `config/default.yml`：新增 `privacy_guard`、`identity` 两节。
 - `main.spec`：加入 `models/` 数据与新模块 hiddenimports。
 - `requirements.txt`：不变（opencv 已含 YuNet/SFace；mediapipe 保留但非必需）。

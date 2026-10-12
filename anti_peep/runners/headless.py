@@ -2,13 +2,13 @@ import sys
 import time
 from typing import Optional
 
-from moyu.core.constants import APP_NAME
-from moyu.core.deps import cv2
-from moyu.core.analysis_worker import FaceAnalysisWorker
-from moyu.services.snapshot import save_snapshot
-from moyu.services.lock_screen_capture import LockScreenCaptureService
-from moyu.services.work_app import switch_to_work_app
-from moyu.ui.tray import get_tray_manager
+from anti_peep.core.constants import APP_NAME
+from anti_peep.core.deps import cv2
+from anti_peep.core.analysis_worker import FaceAnalysisWorker
+from anti_peep.services.snapshot import save_snapshot
+from anti_peep.services.lock_screen_capture import LockScreenCaptureService
+from anti_peep.services.work_app import switch_to_work_app
+from anti_peep.ui.tray import get_tray_manager
 
 
 def run_headless(config: dict) -> None:
@@ -17,11 +17,11 @@ def run_headless(config: dict) -> None:
         print("未安装 OpenCV。请先执行\n  pip install opencv-python")
         sys.exit(1)
 
-    from moyu.core.face_engine import FaceEngine
-    from moyu.core.owner_store import OwnerStore
-    from moyu.core.paths import get_models_dir, get_owner_file_path
-    from moyu.services.privacy_guard import PrivacyGuard
-    from moyu.platforms.windows_session import WindowsSessionState
+    from anti_peep.core.face_engine import FaceEngine
+    from anti_peep.core.owner_store import OwnerStore
+    from anti_peep.core.paths import get_models_dir, get_owner_file_path
+    from anti_peep.services.privacy_guard import PrivacyGuard
+    from anti_peep.platforms.windows_session import WindowsSessionState
 
     identity_cfg = config.get("identity", {})
     store = OwnerStore(

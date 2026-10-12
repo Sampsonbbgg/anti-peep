@@ -1,4 +1,4 @@
-# Core modules for moyu
+# Core modules for anti_peep
 from .constants import APP_NAME
 from .config_loader import load_config
 from .config_store import get_user_config_path, load_user_config, save_user_config
