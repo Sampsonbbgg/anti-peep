@@ -43,6 +43,7 @@ settings_local.py
 /config.yaml
 /user_config.yml
 /user_config.yaml
+/owner_faces.json
 
 # --- 构建、打包结果 ---
 build/

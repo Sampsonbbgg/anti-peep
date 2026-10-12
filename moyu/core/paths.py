@@ -57,3 +57,13 @@ def get_asset_path(filename: str) -> str:
     bundle_dir = getattr(sys, "_MEIPASS", None)
     base = bundle_dir or get_project_root()
     return os.path.join(base, "assets", filename)
+
+
+def get_models_dir() -> str:
+    """人脸模型文件目录。"""
+    return os.path.join(get_base_dir(), "models")
+
+
+def get_owner_file_path() -> str:
+    """主人人脸特征库文件路径。"""
+    return os.path.join(get_base_dir(), "owner_faces.json")

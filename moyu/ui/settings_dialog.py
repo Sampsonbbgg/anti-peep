@@ -82,6 +82,31 @@ class SettingsDialog:
         self._minimize_to_tray = ui_cfg.get("minimize_to_tray", True)
         self._start_minimized = ui_cfg.get("start_minimized", False)
 
+        # 防偷窥 / 身份识别配置
+        pg_cfg = self.config.get("privacy_guard", {})
+        peep_cfg = pg_cfg.get("peep", {})
+        stranger_cfg = pg_cfg.get("stranger", {})
+        away_cfg = pg_cfg.get("away", {})
+        self._pg_enabled = pg_cfg.get("enabled", True)
+        self._pg_peep_enabled = peep_cfg.get("enabled", True)
+        self._pg_peep_min_faces = peep_cfg.get("min_faces", 2)
+        self._pg_peep_action = peep_cfg.get("action", "blur")
+        self._pg_stranger_enabled = stranger_cfg.get("enabled", True)
+        self._pg_stranger_hold = stranger_cfg.get("hold_seconds", 3)
+        self._pg_stranger_action = stranger_cfg.get("action", "cover")
+        self._pg_away_enabled = away_cfg.get("enabled", True)
+        self._pg_away_seconds = away_cfg.get("seconds", 60)
+        self._pg_away_action = away_cfg.get("action", "cover")
+        self._pg_shield = dict(pg_cfg.get("shield", {}))
+        self._pg_snapshot = dict(pg_cfg.get("snapshot", {}))
+        self._pg_legacy = bool(pg_cfg.get("legacy_switch_work_app", False))
+
+        id_cfg = self.config.get("identity", {})
+        self._id_enabled = id_cfg.get("enabled", True)
+        self._id_threshold = id_cfg.get("match_threshold", 0.363)
+        self._id_samples = id_cfg.get("samples", 9)
+        self._id_owner_file = id_cfg.get("owner_file", "owner_faces.json")
+
         # 创建窗口
         if parent:
             self.root = tk.Toplevel(parent)
@@ -177,6 +202,7 @@ class SettingsDialog:
         """创建所有标签页"""
         self._create_tab_button(self.tab_frame, "work_app", "📁 工作应用")
         self._create_tab_button(self.tab_frame, "snapshot", "📷 截图")
+        self._create_tab_button(self.tab_frame, "guard", "🛡 防偷窥")
         self._create_tab_button(self.tab_frame, "camera", "🎥 摄像头")
         self._create_tab_button(self.tab_frame, "ui", "🎨 界面")
 
@@ -204,6 +230,8 @@ class SettingsDialog:
             self._create_snapshot_content()
         elif tab_id == "camera":
             self._create_camera_content()
+        elif tab_id == "guard":
+            self._create_guard_content()
         elif tab_id == "ui":
             self._create_ui_content()
 
@@ -365,6 +393,27 @@ class SettingsDialog:
                         self._debug_draw = self.debug_draw_var.get()
                     except tk.TclError:
                         pass
+
+            elif self.current_tab == "guard":
+                try:
+                    if hasattr(self, 'pg_enabled_var'):
+                        self._pg_enabled = self.pg_enabled_var.get()
+                    if hasattr(self, 'pg_peep_enabled_var'):
+                        self._pg_peep_enabled = self.pg_peep_enabled_var.get()
+                    if hasattr(self, 'pg_peep_min_faces_entry') and self.pg_peep_min_faces_entry.winfo_exists():
+                        self._pg_peep_min_faces = int(self.pg_peep_min_faces_entry.get())
+                    if hasattr(self, 'pg_stranger_enabled_var'):
+                        self._pg_stranger_enabled = self.pg_stranger_enabled_var.get()
+                    if hasattr(self, 'pg_stranger_hold_entry') and self.pg_stranger_hold_entry.winfo_exists():
+                        self._pg_stranger_hold = float(self.pg_stranger_hold_entry.get())
+                    if hasattr(self, 'pg_away_enabled_var'):
+                        self._pg_away_enabled = self.pg_away_enabled_var.get()
+                    if hasattr(self, 'pg_away_seconds_entry') and self.pg_away_seconds_entry.winfo_exists():
+                        self._pg_away_seconds = float(self.pg_away_seconds_entry.get())
+                    if hasattr(self, 'pg_blur_radius_entry') and self.pg_blur_radius_entry.winfo_exists():
+                        self._pg_shield["blur_radius"] = int(self.pg_blur_radius_entry.get())
+                except (tk.TclError, ValueError):
+                    pass
 
             elif self.current_tab == "ui":
                 # 保存提示信息
@@ -828,6 +877,83 @@ class SettingsDialog:
         self._create_checkbox_row(content, "启动时自动最小化到托盘", self.start_minimized_var)
         self.start_minimized_var.trace_add("write", lambda *args: self._on_start_minimized_change())
 
+    def _create_guard_content(self):
+        """防偷窥 / 视觉防护配置内容"""
+        content = tk.Frame(self.content_frame, bg=Theme.BG_CARD)
+        content.pack(fill="both", expand=True, padx=20, pady=15)
+
+        self._create_section_title(content, "视觉防护")
+
+        self.pg_enabled_var = tk.BooleanVar(value=self._pg_enabled)
+        self._create_checkbox_row(content, "启用视觉防护总开关", self.pg_enabled_var)
+
+        self.pg_peep_enabled_var = tk.BooleanVar(value=self._pg_peep_enabled)
+        self._create_checkbox_row(content, "多人同屏偷看时：全部屏幕变模糊", self.pg_peep_enabled_var)
+        self.pg_peep_min_faces_var = tk.StringVar(value=str(self._pg_peep_min_faces))
+        self.pg_peep_min_faces_entry = self._create_input_row(
+            content, "触发人脸数：", self.pg_peep_min_faces_var)
+
+        self.pg_stranger_enabled_var = tk.BooleanVar(value=self._pg_stranger_enabled)
+        self._create_checkbox_row(content, "陌生人看屏幕时：全屏遮屏", self.pg_stranger_enabled_var)
+        self.pg_stranger_hold_var = tk.StringVar(value=str(self._pg_stranger_hold))
+        self.pg_stranger_hold_entry = self._create_input_row(
+            content, "持续秒数：", self.pg_stranger_hold_var)
+
+        self.pg_away_enabled_var = tk.BooleanVar(value=self._pg_away_enabled)
+        self._create_checkbox_row(content, "主人离开时：全屏遮屏", self.pg_away_enabled_var)
+        self.pg_away_seconds_var = tk.StringVar(value=str(self._pg_away_seconds))
+        self.pg_away_seconds_entry = self._create_input_row(
+            content, "离开秒数：", self.pg_away_seconds_var)
+
+        self.pg_blur_radius_var = tk.StringVar(value=str(self._pg_shield.get("blur_radius", 28)))
+        self.pg_blur_radius_entry = self._create_input_row(
+            content, "模糊强度：", self.pg_blur_radius_var)
+
+        self._create_section_title(content, "主人人脸")
+        enroll_row = tk.Frame(content, bg=Theme.BG_CARD)
+        enroll_row.pack(fill="x", pady=5)
+        tk.Button(
+            enroll_row,
+            text="录入 / 重新录入主人人脸",
+            font=("Microsoft YaHei", 10),
+            bg=Theme.PRIMARY,
+            fg="white",
+            relief="flat",
+            cursor="hand2",
+            command=self._open_enroll,
+        ).pack(side="left", ipadx=12, ipady=5)
+        tk.Label(
+            enroll_row,
+            text="（未录入时陌生人/离开判定不生效）",
+            font=("Microsoft YaHei", 9),
+            fg=Theme.TEXT_SECONDARY,
+            bg=Theme.BG_CARD,
+        ).pack(side="left", padx=(10, 0))
+
+    def _open_enroll(self):
+        """打开主人人脸录入对话框。"""
+        try:
+            from moyu.core.face_engine import FaceEngine
+            from moyu.core.owner_store import OwnerStore
+            from moyu.core.paths import get_models_dir, get_owner_file_path
+            from .enroll_dialog import EnrollDialog
+
+            store = OwnerStore(
+                get_owner_file_path(), threshold=float(self._id_threshold))
+            store.load()
+            engine = FaceEngine(get_models_dir(), store)
+            engine.load()
+            dialog = EnrollDialog(
+                self.root,
+                engine,
+                store,
+                samples=int(self._id_samples),
+                camera_index=int(self._camera_index),
+            )
+            dialog.run()
+        except Exception as e:
+            messagebox.showerror("错误", f"录入主人人脸失败：{e}")
+
     def _on_message_change(self):
         """提示文字变化时更新实例变量"""
         try:
@@ -984,6 +1110,35 @@ class SettingsDialog:
             self.config["ui"]["enable_system_tray"] = self._enable_tray
             self.config["ui"]["minimize_to_tray"] = self._minimize_to_tray
             self.config["ui"]["start_minimized"] = self._start_minimized
+
+            # 防偷窥 / 视觉防护配置
+            self.config["privacy_guard"] = {
+                "enabled": self._pg_enabled,
+                "peep": {
+                    "enabled": self._pg_peep_enabled,
+                    "min_faces": self._pg_peep_min_faces,
+                    "action": self._pg_peep_action,
+                },
+                "stranger": {
+                    "enabled": self._pg_stranger_enabled,
+                    "hold_seconds": self._pg_stranger_hold,
+                    "action": self._pg_stranger_action,
+                },
+                "away": {
+                    "enabled": self._pg_away_enabled,
+                    "seconds": self._pg_away_seconds,
+                    "action": self._pg_away_action,
+                },
+                "shield": self._pg_shield,
+                "snapshot": self._pg_snapshot,
+                "legacy_switch_work_app": self._pg_legacy,
+            }
+            self.config["identity"] = {
+                "enabled": self._id_enabled,
+                "match_threshold": self._id_threshold,
+                "samples": self._id_samples,
+                "owner_file": self._id_owner_file,
+            }
 
             self.saved = True
             if self.on_save:

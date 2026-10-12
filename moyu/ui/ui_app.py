@@ -15,7 +15,7 @@ if _sys.platform.startswith('win'):
 from moyu.core.constants import APP_NAME
 from moyu.core.config_store import save_user_config
 from moyu.core.deps import sys, tk, Image, ImageTk, cv2
-from moyu.core.detector import FaceDetectionWorker
+from moyu.core.analysis_worker import FaceAnalysisWorker
 from moyu.core.paths import get_asset_path
 from moyu.services.snapshot import save_snapshot
 from moyu.services.lock_screen_capture import LockScreenCaptureService
@@ -142,8 +142,11 @@ class CameraPreviewApp:
 
         self._photo = None
 
-        # 启动人脸检测线程
-        self.detector = FaceDetectionWorker(config)
+        # 身份识别 + 视觉防护
+        self._init_privacy(config)
+
+        # 启动人脸分析线程
+        self.detector = FaceAnalysisWorker(config, self.face_engine)
         self.detector.start()
         self.lock_screen_capture = LockScreenCaptureService(config)
 
@@ -167,6 +170,66 @@ class CameraPreviewApp:
         self.root.after(0, self._update_frame)
         if self.enable_tray and self.start_minimized:
             self.root.after(150, self._hide_to_tray)
+
+    # ---------- 身份识别与防护 ----------
+
+    def _init_privacy(self, config):
+        """构建主人特征库、人脸引擎、防护状态机与遮罩层。"""
+        from moyu.core.face_engine import FaceEngine
+        from moyu.core.owner_store import OwnerStore
+        from moyu.core.paths import get_models_dir, get_owner_file_path
+        from moyu.services.privacy_guard import PrivacyGuard
+        from moyu.services.screen_shield import ScreenShield
+        from moyu.platforms.windows_session import WindowsSessionState
+        from moyu.services.hotkey import GlobalHotkey
+
+        identity_cfg = config.get("identity", {})
+        self.owner_store = OwnerStore(
+            get_owner_file_path(),
+            threshold=float(identity_cfg.get("match_threshold", 0.363)),
+        )
+        self.owner_store.load()
+        self.face_engine = FaceEngine(get_models_dir(), self.owner_store)
+        self.identity_enabled = bool(identity_cfg.get("enabled", True))
+        try:
+            self.face_engine.load()
+        except Exception as e:
+            print(f"人脸模型加载失败，降级为仅多人检测：{e}")
+            self.identity_enabled = False
+        if not self.identity_enabled:
+            self.owner_store.clear()
+
+        pg_cfg = config.get("privacy_guard", {})
+        self.guard = PrivacyGuard(config)
+        self.shield = ScreenShield(self.root, config)
+        self.session_state = WindowsSessionState()
+        self._snapshot_cooldown = float(
+            pg_cfg.get("snapshot", {}).get("cooldown_seconds", 15)
+        )
+        self._last_snapshot_time = 0.0
+        self._prev_shield_mode = "none"
+        self.paused = False
+        self.legacy_switch_work_app = bool(
+            pg_cfg.get("legacy_switch_work_app", False)
+        )
+
+        # 全局热键 Ctrl+Alt+P：紧急暂停/恢复防护
+        self._hotkey = GlobalHotkey(
+            lambda: self.root.after(0, self._toggle_pause)
+        )
+        try:
+            self._hotkey.start()
+        except Exception:
+            self._hotkey = None
+
+    def _toggle_pause(self):
+        self.paused = not self.paused
+        if self.paused:
+            self.shield.set_mode("none")
+        state = "已暂停防护" if self.paused else "已恢复防护"
+        print(f"[魔芋] {state}（Ctrl+Alt+P）")
+        if self.tray:
+            self.tray.show_notification(APP_NAME, state, self.tray_notification_seconds)
 
     # ---------- Tk 回调 ----------
 
@@ -215,6 +278,16 @@ class CameraPreviewApp:
         try:
             if self.detector:
                 self.detector.stop()
+        except Exception:
+            pass
+        try:
+            if getattr(self, "shield", None):
+                self.shield.close()
+        except Exception:
+            pass
+        try:
+            if getattr(self, "_hotkey", None):
+                self._hotkey.stop()
         except Exception:
             pass
         if self.tray:
@@ -277,11 +350,15 @@ class CameraPreviewApp:
     # ---------- 主 UI 循环 ----------
 
     def _update_frame(self):
-        """从检测线程读取最新状态并更新 UI。"""
-        frame_bgr, is_face_present, lock_face_present = self.detector.get_latest_frame_and_states()
+        """从分析线程读取最新结果并驱动视觉防护。"""
+        frame_bgr, analysis = self.detector.get_latest()
 
         if frame_bgr is not None and cv2 is not None:
-            frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+            draw = frame_bgr.copy()
+            for (x, y, bw, bh, score, label, sim) in analysis.faces:
+                color = (0, 200, 0) if label == "owner" else (0, 0, 255)
+                cv2.rectangle(draw, (x, y), (x + bw, y + bh), color, 1)
+            frame_rgb = cv2.cvtColor(draw, cv2.COLOR_BGR2RGB)
             h, w = frame_rgb.shape[:2]
 
             label_width = max(self.video_label.winfo_width(), 1)
@@ -304,15 +381,33 @@ class CameraPreviewApp:
             self.video_label.config(image=self._photo)
 
         now = time.time()
+        lock_face_present = bool(getattr(analysis, "face_count", 0) > 0)
         self.lock_screen_capture.process(frame_bgr, lock_face_present)
-        if is_face_present and not self._prev_is_face_present:
-            if now - self._last_action_time >= self.cooldown_seconds:
-                self._last_action_time = now
-                self._handle_alert(frame_bgr)
 
-        self._prev_is_face_present = is_face_present
+        if self.paused:
+            self.shield.set_mode("none")
+            decision_mode = "none"
+        else:
+            decision = self.guard.update(analysis, now, self.session_state.is_locked())
+            decision_mode = decision.mode
+            self.shield.set_mode(decision_mode)
+            if decision_mode in ("blur", "cover") and decision_mode != self._prev_shield_mode:
+                if now - self._last_snapshot_time >= self._snapshot_cooldown:
+                    self._last_snapshot_time = now
+                    try:
+                        save_snapshot(
+                            self.config, frame_bgr,
+                            filename_prefix=f"shield_{decision.reason}",
+                        )
+                    except Exception:
+                        pass
+            if self.legacy_switch_work_app and analysis.face_count >= 2:
+                if now - self._last_action_time >= self.cooldown_seconds:
+                    self._last_action_time = now
+                    self._handle_alert(frame_bgr)
+
+        self._prev_shield_mode = decision_mode
         self._update_message_visibility()
-
         self.root.after(30, self._update_frame)
 
     def run(self):

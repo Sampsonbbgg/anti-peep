@@ -1,4 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+
 from PyInstaller.utils.hooks import collect_data_files
 
 datas = [
@@ -7,6 +9,10 @@ datas = [
     ('assets/moyu.png', 'assets'),
 ]
 datas += collect_data_files('mediapipe')
+
+# 人脸模型目录（如已下载则一并打包，否则首次运行时自动下载）
+if os.path.isdir('models'):
+    datas += [('models', 'models')]
 
 # 添加所有模块目录
 hiddenimports = [
@@ -17,6 +23,9 @@ hiddenimports = [
     'moyu.core.config_store',
     'moyu.core.deps',
     'moyu.core.detector',
+    'moyu.core.face_engine',
+    'moyu.core.owner_store',
+    'moyu.core.analysis_worker',
     'moyu.core.paths',
     'moyu.platforms.windows_session',
     'moyu.runners.headless',
@@ -24,9 +33,14 @@ hiddenimports = [
     'moyu.services.lock_screen_capture',
     'moyu.services.snapshot',
     'moyu.services.work_app',
+    'moyu.services.privacy_guard',
+    'moyu.services.screen_shield',
+    'moyu.services.monitors',
+    'moyu.services.hotkey',
     'moyu.ui',
     'moyu.ui.tray',
     'moyu.ui.ui_app',
+    'moyu.ui.enroll_dialog',
 ]
 
 a = Analysis(

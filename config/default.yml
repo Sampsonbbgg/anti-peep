@@ -92,3 +92,51 @@ ui:
   ## 托盘气泡提示的显示秒数（5~10），到时间后自动消失。
   tray_notification_seconds: 5
 
+## 人脸身份识别（主人/陌生人）。
+identity:
+  ## 是否启用身份识别；关闭后仅保留多人检测。
+  enabled: true
+  ## SFace 余弦相似度阈值，达到即判定为主人，推荐 0.363。
+  match_threshold: 0.363
+  ## 录入主人人脸时的采集样本数。
+  samples: 9
+  ## 主人特征库文件名（相对程序目录）。
+  owner_file: "owner_faces.json"
+
+## 视觉防护：多人偷看→模糊；陌生人/人离开→遮屏。
+privacy_guard:
+  ## 总开关。
+  enabled: true
+  ## 多人同屏偷看。
+  peep:
+    enabled: true
+    ## 触发所需最少人脸数。
+    min_faces: 2
+    ## blur=变模糊(点击穿透)，cover=遮屏(拦截输入)。
+    action: "blur"
+  ## 陌生人长时间看屏幕。
+  stranger:
+    enabled: true
+    ## 连续检测到陌生人达到该秒数才遮屏。
+    hold_seconds: 3
+    action: "cover"
+  ## 主人离开（画面长时间无人脸）。
+  away:
+    enabled: true
+    ## 连续无人的秒数。
+    seconds: 60
+    action: "cover"
+  ## 遮罩呈现参数。
+  shield:
+    ## 模糊半径，越大越糊。
+    blur_radius: 28
+    ## 0=触发时截一次并冻结（推荐，避免泄露）；>0 会周期性重抓，可能闪现清晰画面。
+    blur_refresh_ms: 0
+    ## 遮屏时显示的文字，留空为纯黑。
+    cover_text: ""
+  ## 触发时的抓拍冷却（秒）。
+  snapshot:
+    cooldown_seconds: 15
+  ## 旧行为：检测到人脸时切换工作软件，默认关闭。
+  legacy_switch_work_app: false
+
