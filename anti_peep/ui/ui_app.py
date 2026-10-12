@@ -21,6 +21,7 @@ from anti_peep.services.snapshot import save_snapshot
 from anti_peep.services.lock_screen_capture import LockScreenCaptureService
 from .tray import get_tray_manager
 from anti_peep.services.work_app import switch_to_work_app
+from anti_peep.services.esc_dismiss import next_override, effective_mode
 from .settings_dialog import SettingsDialog
 from .dpi_utils import enable_dpi_awareness, enable_dark_title_bar
 
@@ -181,7 +182,7 @@ class CameraPreviewApp:
         from anti_peep.services.privacy_guard import PrivacyGuard
         from anti_peep.services.screen_shield import ScreenShield
         from anti_peep.platforms.windows_session import WindowsSessionState
-        from anti_peep.services.hotkey import GlobalHotkey
+        from anti_peep.services.hotkey import GlobalHotkey, EscListener
 
         identity_cfg = config.get("identity", {})
         self.owner_store = OwnerStore(
@@ -212,6 +213,8 @@ class CameraPreviewApp:
         self._last_snapshot_time = 0.0
         self._prev_shield_mode = "none"
         self.paused = False
+        # Esc 退出：覆盖生效时强制清晰，待场景回到安全后自动重新武装
+        self._esc_override = False
         self.legacy_switch_work_app = bool(
             pg_cfg.get("legacy_switch_work_app", False)
         )
@@ -225,9 +228,45 @@ class CameraPreviewApp:
         except Exception:
             self._hotkey = None
 
+        # 全局 Esc：仅在防护层（模糊/遮屏）显示期间接管，用于立即退出
+        self._esc_hotkey = EscListener(
+            lambda: self.root.after(0, self._on_esc_dismiss)
+        )
+        try:
+            self._esc_hotkey.start()
+        except Exception:
+            self._esc_hotkey = None
+
+    def _set_esc_active(self, active: bool) -> None:
+        if self._esc_hotkey is None:
+            return
+        try:
+            self._esc_hotkey.set_enabled(active)
+        except Exception:
+            pass
+
+    def _on_esc_dismiss(self):
+        """Esc 按下：撤除当前模糊/遮屏，并在本触发条件结束前不再弹出。"""
+        mode = getattr(self.shield, "_mode", "none")
+        if mode not in ("blur", "cover"):
+            return
+        self._esc_override = True
+        self.shield.set_mode("none")
+        self._set_esc_active(False)
+        self._prev_shield_mode = "none"
+        self._update_message_visibility()
+        print("[Anti-Peep] 已按 Esc 退出防护层")
+        if self.tray:
+            self.tray.show_notification(
+                APP_NAME, "已按 Esc 退出模糊/遮屏", self.tray_notification_seconds
+            )
+
+
     def _toggle_pause(self):
         self.paused = not self.paused
         if self.paused:
+            self._esc_override = False
+            self._set_esc_active(False)
             self.shield.set_mode("none")
         state = "已暂停防护" if self.paused else "已恢复防护"
         print(f"[Anti-Peep] {state}（Ctrl+Alt+P）")
@@ -293,6 +332,11 @@ class CameraPreviewApp:
                 self._hotkey.stop()
         except Exception:
             pass
+        try:
+            if getattr(self, "_esc_hotkey", None):
+                self._esc_hotkey.stop()
+        except Exception:
+            pass
         if self.tray:
             self.tray.stop()
             self.tray = None
@@ -315,9 +359,27 @@ class CameraPreviewApp:
             ui_cfg = new_config.get("ui", {})
             self.message_text = ui_cfg.get("message", self.message_text)
 
+        def on_enrolled():
+            # 录入主人人脸后立即重载特征库，使视线/陌生人判定即时生效。
+            try:
+                self.owner_store.load()
+                self.guard.owner_enrolled = (
+                    self.identity_enabled and not self.owner_store.is_empty
+                )
+            except Exception:
+                pass
+
         try:
             # 传递 self.root 作为父窗口，避免创建多个 Tk() 实例导致卡死
-            dialog = SettingsDialog(self.config, on_save=on_save, parent=self.root)
+            dialog = SettingsDialog(
+                self.config,
+                on_save=on_save,
+                on_enrolled=on_enrolled,
+                frame_provider=lambda: (
+                    self.detector.get_latest()[0] if self.detector else None
+                ),
+                parent=self.root,
+            )
             dialog.run()
         finally:
             # 恢复预览窗口
@@ -392,7 +454,10 @@ class CameraPreviewApp:
             decision_mode = "none"
         else:
             decision = self.guard.update(analysis, now, self.session_state.is_locked())
-            decision_mode = decision.mode
+            # Esc 覆盖：撤除后保持清晰，直到决策自然回到 none 再重新武装
+            if self._esc_override:
+                self._esc_override = next_override(True, decision.mode)
+            decision_mode = effective_mode(decision.mode, self._esc_override)
             self.shield.set_mode(decision_mode)
             if decision_mode in ("blur", "cover") and decision_mode != self._prev_shield_mode:
                 if now - self._last_snapshot_time >= self._snapshot_cooldown:
@@ -409,6 +474,8 @@ class CameraPreviewApp:
                     self._last_action_time = now
                     self._handle_alert(frame_bgr)
 
+        # 仅在防护层显示期间接管 Esc，平时不干扰其它程序
+        self._set_esc_active(decision_mode in ("blur", "cover"))
         self._prev_shield_mode = decision_mode
         self._update_message_visibility()
         self.root.after(30, self._update_frame)

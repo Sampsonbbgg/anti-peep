@@ -37,10 +37,15 @@ hiddenimports = [
     'anti_peep.services.screen_shield',
     'anti_peep.services.monitors',
     'anti_peep.services.hotkey',
+    'anti_peep.services.esc_dismiss',
     'anti_peep.ui',
     'anti_peep.ui.tray',
     'anti_peep.ui.ui_app',
     'anti_peep.ui.enroll_dialog',
+    # Pillow 延迟子模块（tk 渲染 / 截屏）显式打包，避免 exe 里缺失导致预览黑屏。
+    'PIL.ImageTk',
+    'PIL.ImageGrab',
+    'PIL.ImageFilter',
 ]
 
 a = Analysis(

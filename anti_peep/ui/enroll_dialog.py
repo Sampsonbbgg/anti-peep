@@ -31,17 +31,21 @@ class EnrollDialog:
         owner_store: OwnerStore,
         samples: int = 9,
         camera_index: int = 0,
+        frame_provider=None,
     ):
         self.engine = engine
         self.owner_store = owner_store
         self.samples = max(1, int(samples))
         self.camera_index = int(camera_index)
+        # 优先复用主分析线程已在取的那路画面（避免同进程二次打开摄像头导致的黑屏）。
+        self.frame_provider = frame_provider
         self.captured = 0
         self.saved = False
         self._cap = None
         self._running = False
         self._photo = None
         self._last_feature_sim = 0.0
+        self._render_error_shown = False
 
         self.root = tk.Toplevel(parent)
         self.root.title("录入主人人脸")
@@ -77,14 +81,14 @@ class EnrollDialog:
         self.start_btn = tk.Button(
             btn_row, text="开始录入", font=("Microsoft YaHei", 10, "bold"),
             bg=Theme.ACCENT, fg="white", relief="flat", cursor="hand2",
-            command=self._start, ipadx=16, ipady=5,
+            command=self._start,
         )
-        self.start_btn.pack(side="left", padx=6)
+        self.start_btn.pack(side="left", padx=6, ipadx=16, ipady=5)
         tk.Button(
             btn_row, text="取消", font=("Microsoft YaHei", 10),
             bg=Theme.BG_CARD, fg=Theme.TEXT_SECONDARY, relief="flat", cursor="hand2",
-            command=self._cancel, ipadx=16, ipady=5,
-        ).pack(side="left", padx=6)
+            command=self._cancel,
+        ).pack(side="left", padx=6, ipadx=16, ipady=5)
         self.root.protocol("WM_DELETE_WINDOW", self._cancel)
 
     # ---------- 录入流程 ----------
@@ -95,22 +99,38 @@ class EnrollDialog:
         self._running = True
         self.start_btn.configure(state="disabled")
         self.owner_store.clear()
-        self._cap = cv2.VideoCapture(self.camera_index)
-        if not self._cap.isOpened():
-            self.status_label.configure(text="无法打开摄像头，请检查设备。", fg=Theme.ERROR)
-            self._running = False
-            self.start_btn.configure(state="normal")
-            return
+        if self.frame_provider is None:
+            # 独立运行（无主程序供帧）时才自开摄像头。
+            self._cap = cv2.VideoCapture(self.camera_index)
+            if not self._cap.isOpened():
+                self.status_label.configure(text="无法打开摄像头，请检查设备。", fg=Theme.ERROR)
+                self._running = False
+                self.start_btn.configure(state="normal")
+                return
         self.root.after(100, self._loop)
 
-    def _loop(self):
-        if not self._running or self._cap is None:
-            return
+    def _get_frame(self):
+        """取一帧 BGR（已镜像）。复用主线程画面时不重复翻转。"""
+        if self.frame_provider is not None:
+            try:
+                return self.frame_provider()
+            except Exception:
+                return None
+        if self._cap is None:
+            return None
         ok, frame = self._cap.read()
-        if not ok:
-            self.root.after(60, self._loop)
+        if not ok or frame is None:
+            return None
+        return cv2.flip(frame, 1)
+
+    def _loop(self):
+        if not self._running:
             return
-        frame = cv2.flip(frame, 1)
+        frame = self._get_frame()
+        if frame is None:
+            self.status_label.configure(text="等待摄像头画面…", fg=Theme.TEXT_SECONDARY)
+            self.root.after(100, self._loop)
+            return
         rows = self.engine.detect(frame)
         faces = list(rows) if rows is not None else []
 
@@ -125,8 +145,11 @@ class EnrollDialog:
                 img = Image.fromarray(resized)
                 self._photo = ImageTk.PhotoImage(img)
                 self.video_label.configure(image=self._photo)
-            except Exception:
-                pass
+                self._render_error_shown = False
+            except Exception as e:
+                if not self._render_error_shown:
+                    self._render_error_shown = True
+                    self.status_label.configure(text=f"画面渲染失败：{e}", fg=Theme.ERROR)
 
         if len(faces) == 1:
             row = max(faces, key=lambda r: float(r[2]) * float(r[3]))

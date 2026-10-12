@@ -43,6 +43,8 @@ class SettingsDialog:
         self,
         config: Dict[str, Any],
         on_save: Optional[Callable[[Dict[str, Any]], None]] = None,
+        on_enrolled: Optional[Callable[[], None]] = None,
+        frame_provider: Optional[Callable[[], Any]] = None,
         parent: Optional[tk.Tk] = None
     ):
         if tk is None:
@@ -53,6 +55,8 @@ class SettingsDialog:
 
         self.config = copy.deepcopy(config)
         self.on_save = on_save
+        self.on_enrolled = on_enrolled
+        self.frame_provider = frame_provider
         self.saved = False
 
         # 预先从配置读取所有值，避免未访问标签页时出错
@@ -957,8 +961,12 @@ class SettingsDialog:
                 store,
                 samples=int(self._id_samples),
                 camera_index=int(self._camera_index),
+                frame_provider=self.frame_provider,
             )
-            dialog.run()
+            saved = dialog.run()
+            if saved and self.on_enrolled:
+                # 通知主程序重新加载特征库，使视线/陌生人判定即时生效，无需重启。
+                self.on_enrolled()
         except Exception as e:
             messagebox.showerror("错误", f"录入主人人脸失败：{e}")
 
