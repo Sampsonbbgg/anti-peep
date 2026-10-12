@@ -1,7 +1,7 @@
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from .deps import cv2
 from .face_engine import FaceEngine, LABEL_OWNER, LABEL_STRANGER
@@ -14,6 +14,8 @@ class Analysis:
     has_owner: bool = False
     has_stranger: bool = False
     max_owner_sim: float = 0.0
+    owner_yaw: Optional[float] = None
+    owner_pitch: Optional[float] = None
 
 
 class FaceAnalysisWorker(threading.Thread):
@@ -61,11 +63,20 @@ class FaceAnalysisWorker(threading.Thread):
 
     def _summarize(self, labeled) -> Analysis:
         a = Analysis(face_count=len(labeled))
-        for bbox, label, sim in labeled:
+        best_owner_area = -1
+        for item in labeled:
+            bbox, label, sim = item[0], item[1], item[2]
+            yaw = item[3] if len(item) > 3 else None
+            pitch = item[4] if len(item) > 4 else None
             a.faces.append((*bbox, label, sim))
             if label == LABEL_OWNER:
                 a.has_owner = True
                 a.max_owner_sim = max(a.max_owner_sim, sim)
+                area = int(bbox[2]) * int(bbox[3])
+                if yaw is not None and area > best_owner_area:
+                    best_owner_area = area
+                    a.owner_yaw = yaw
+                    a.owner_pitch = pitch
             elif label == LABEL_STRANGER:
                 a.has_stranger = True
         return a
@@ -89,11 +100,16 @@ class FaceAnalysisWorker(threading.Thread):
                     if not (self.min_area_ratio <= area_ratio <= self.max_area_ratio):
                         continue
                     label, sim = self.engine.identify(frame, row)
+                    yaw = pitch = None
+                    if label == LABEL_OWNER:
+                        pose = self.engine.estimate_pose(row, (h, w))
+                        if pose is not None:
+                            pitch, yaw, _roll = pose
                     x = max(min(x, w - 1), 0)
                     y = max(min(y, h - 1), 0)
                     bw = max(min(bw, w - x), 1)
                     bh = max(min(bh, h - y), 1)
-                    labeled.append(((x, y, bw, bh, score), label, sim))
+                    labeled.append(((x, y, bw, bh, score), label, sim, yaw, pitch))
                 analysis = self._summarize(labeled)
                 with self._lock:
                     self._latest_frame = frame

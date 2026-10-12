@@ -103,7 +103,7 @@ identity:
   ## 主人特征库文件名（相对程序目录）。
   owner_file: "owner_faces.json"
 
-## 视觉防护：多人偷看→模糊；陌生人/人离开→遮屏。
+## 视觉防护：陌生人→遮屏；没我 / 我没看屏幕 / 多人偷看→模糊。
 privacy_guard:
   ## 总开关。
   enabled: true
@@ -120,12 +120,16 @@ privacy_guard:
     ## 连续检测到陌生人达到该秒数才遮屏。
     hold_seconds: 3
     action: "cover"
-  ## 主人离开（画面长时间无人脸）。
-  away:
+  ## 没我 / 我没看屏幕（主人视线离开屏幕）→ 模糊。
+  blur:
     enabled: true
-    ## 连续无人的秒数。
-    seconds: 60
-    action: "cover"
+    ## 从"没我 / 没看屏幕"到模糊的缓冲秒数。
+    hold_seconds: 1.5
+    action: "blur"
+  ## 视线判定参数。
+  looking:
+    ## 头部左右转头超过该角度（度）即视为"没看屏幕"。
+    max_yaw_deg: 25
   ## 遮罩呈现参数。
   shield:
     ## 模糊半径，越大越糊。

@@ -11,7 +11,10 @@ class ConfigPrivacyTests(unittest.TestCase):
         self.assertEqual(2, pg["peep"]["min_faces"])
         self.assertEqual("blur", pg["peep"]["action"])
         self.assertEqual("cover", pg["stranger"]["action"])
-        self.assertEqual(60, pg["away"]["seconds"])
+        self.assertEqual(1.5, pg["blur"]["hold_seconds"])
+        self.assertEqual("blur", pg["blur"]["action"])
+        self.assertEqual(25, pg["looking"]["max_yaw_deg"])
+        self.assertNotIn("away", pg)
         self.assertIn("identity", c)
         self.assertAlmostEqual(0.363, c["identity"]["match_threshold"], places=3)
 

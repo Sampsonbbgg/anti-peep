@@ -200,7 +200,10 @@ class CameraPreviewApp:
             self.owner_store.clear()
 
         pg_cfg = config.get("privacy_guard", {})
-        self.guard = PrivacyGuard(config)
+        self.guard = PrivacyGuard(
+            config,
+            owner_enrolled=self.identity_enabled and not self.owner_store.is_empty,
+        )
         self.shield = ScreenShield(self.root, config)
         self.session_state = WindowsSessionState()
         self._snapshot_cooldown = float(

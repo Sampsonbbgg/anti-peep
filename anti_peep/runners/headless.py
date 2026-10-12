@@ -39,7 +39,7 @@ def run_headless(config: dict) -> None:
     detector = FaceAnalysisWorker(config, engine)
     detector.start()
     lock_screen_capture = LockScreenCaptureService(config)
-    guard = PrivacyGuard(config)
+    guard = PrivacyGuard(config, owner_enrolled=not store.is_empty)
     session_state = WindowsSessionState()
 
     ui_cfg = config.get("ui", {})

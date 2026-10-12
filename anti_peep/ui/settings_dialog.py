@@ -86,7 +86,8 @@ class SettingsDialog:
         pg_cfg = self.config.get("privacy_guard", {})
         peep_cfg = pg_cfg.get("peep", {})
         stranger_cfg = pg_cfg.get("stranger", {})
-        away_cfg = pg_cfg.get("away", {})
+        blur_cfg = pg_cfg.get("blur", {})
+        looking_cfg = pg_cfg.get("looking", {})
         self._pg_enabled = pg_cfg.get("enabled", True)
         self._pg_peep_enabled = peep_cfg.get("enabled", True)
         self._pg_peep_min_faces = peep_cfg.get("min_faces", 2)
@@ -94,9 +95,10 @@ class SettingsDialog:
         self._pg_stranger_enabled = stranger_cfg.get("enabled", True)
         self._pg_stranger_hold = stranger_cfg.get("hold_seconds", 3)
         self._pg_stranger_action = stranger_cfg.get("action", "cover")
-        self._pg_away_enabled = away_cfg.get("enabled", True)
-        self._pg_away_seconds = away_cfg.get("seconds", 60)
-        self._pg_away_action = away_cfg.get("action", "cover")
+        self._pg_blur_enabled = blur_cfg.get("enabled", True)
+        self._pg_blur_hold = blur_cfg.get("hold_seconds", 1.5)
+        self._pg_blur_action = blur_cfg.get("action", "blur")
+        self._pg_max_yaw = looking_cfg.get("max_yaw_deg", 25)
         self._pg_shield = dict(pg_cfg.get("shield", {}))
         self._pg_snapshot = dict(pg_cfg.get("snapshot", {}))
         self._pg_legacy = bool(pg_cfg.get("legacy_switch_work_app", False))
@@ -406,10 +408,12 @@ class SettingsDialog:
                         self._pg_stranger_enabled = self.pg_stranger_enabled_var.get()
                     if hasattr(self, 'pg_stranger_hold_entry') and self.pg_stranger_hold_entry.winfo_exists():
                         self._pg_stranger_hold = float(self.pg_stranger_hold_entry.get())
-                    if hasattr(self, 'pg_away_enabled_var'):
-                        self._pg_away_enabled = self.pg_away_enabled_var.get()
-                    if hasattr(self, 'pg_away_seconds_entry') and self.pg_away_seconds_entry.winfo_exists():
-                        self._pg_away_seconds = float(self.pg_away_seconds_entry.get())
+                    if hasattr(self, 'pg_blur_enabled_var'):
+                        self._pg_blur_enabled = self.pg_blur_enabled_var.get()
+                    if hasattr(self, 'pg_blur_hold_entry') and self.pg_blur_hold_entry.winfo_exists():
+                        self._pg_blur_hold = float(self.pg_blur_hold_entry.get())
+                    if hasattr(self, 'pg_max_yaw_entry') and self.pg_max_yaw_entry.winfo_exists():
+                        self._pg_max_yaw = float(self.pg_max_yaw_entry.get())
                     if hasattr(self, 'pg_blur_radius_entry') and self.pg_blur_radius_entry.winfo_exists():
                         self._pg_shield["blur_radius"] = int(self.pg_blur_radius_entry.get())
                 except (tk.TclError, ValueError):
@@ -899,11 +903,15 @@ class SettingsDialog:
         self.pg_stranger_hold_entry = self._create_input_row(
             content, "持续秒数：", self.pg_stranger_hold_var)
 
-        self.pg_away_enabled_var = tk.BooleanVar(value=self._pg_away_enabled)
-        self._create_checkbox_row(content, "主人离开时：全屏遮屏", self.pg_away_enabled_var)
-        self.pg_away_seconds_var = tk.StringVar(value=str(self._pg_away_seconds))
-        self.pg_away_seconds_entry = self._create_input_row(
-            content, "离开秒数：", self.pg_away_seconds_var)
+        self.pg_blur_enabled_var = tk.BooleanVar(value=self._pg_blur_enabled)
+        self._create_checkbox_row(
+            content, "没我 / 我没看屏幕时：全部屏幕变模糊", self.pg_blur_enabled_var)
+        self.pg_blur_hold_var = tk.StringVar(value=str(self._pg_blur_hold))
+        self.pg_blur_hold_entry = self._create_input_row(
+            content, "缓冲秒数：", self.pg_blur_hold_var)
+        self.pg_max_yaw_var = tk.StringVar(value=str(self._pg_max_yaw))
+        self.pg_max_yaw_entry = self._create_input_row(
+            content, "左右转头角度（度）：", self.pg_max_yaw_var)
 
         self.pg_blur_radius_var = tk.StringVar(value=str(self._pg_shield.get("blur_radius", 28)))
         self.pg_blur_radius_entry = self._create_input_row(
@@ -1124,10 +1132,13 @@ class SettingsDialog:
                     "hold_seconds": self._pg_stranger_hold,
                     "action": self._pg_stranger_action,
                 },
-                "away": {
-                    "enabled": self._pg_away_enabled,
-                    "seconds": self._pg_away_seconds,
-                    "action": self._pg_away_action,
+                "blur": {
+                    "enabled": self._pg_blur_enabled,
+                    "hold_seconds": self._pg_blur_hold,
+                    "action": self._pg_blur_action,
+                },
+                "looking": {
+                    "max_yaw_deg": self._pg_max_yaw,
                 },
                 "shield": self._pg_shield,
                 "snapshot": self._pg_snapshot,
