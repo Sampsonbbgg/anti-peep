@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 运行环境：Windows，仓库根 `D:\anti-peep\moyu`，虚拟环境 `.venv`（Python 3.14）。
+- 运行环境：Windows，仓库根即项目根目录，虚拟环境 `.venv`（Python 3.14）。
 - 测试框架：`unittest`（与现有 `tests/` 保持一致），运行方式 `.venv\Scripts\python.exe -m unittest discover -s tests`。
 - 模型下载源固定为 `hf-mirror.com`（`raw.githubusercontent.com`/`huggingface.co` 在本机不可达）。
 - 身份特征维度 128，做 L2 归一化；主人判定默认余弦阈值 `0.363`。
